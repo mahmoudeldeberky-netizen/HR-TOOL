@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR - نموذج رسائل المقابلات</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --accent: #00c896;
+    --accent2: #00a67e;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --danger: #f85149;
+    --warning: #e3b341;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* Auth overlay */
+  #authOverlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 20px;
+  }
+  #authOverlay.hidden { display: none; }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 32px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+  }
+  .auth-card h2 { color: var(--accent); font-size: 1.4rem; margin-bottom: 8px; }
+  .auth-card p { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 24px; }
+  .btn-google {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 12px 20px;
+    background: white; color: #333;
+    border: none; border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-google:hover { opacity: 0.9; }
+  .btn-google img { width: 22px; }
+
+  /* Pending approval screen */
+  #pendingOverlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9998;
+    flex-direction: column;
+    gap: 20px;
+  }
+  #pendingOverlay.hidden { display: none; }
+  .pending-card {
+    background: var(--surface);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius);
+    padding: 40px 32px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+  }
+  .pending-card h2 { color: var(--warning); font-size: 1.3rem; margin-bottom: 12px; }
+  .pending-card p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; }
+  .pending-card .user-info { 
+    margin: 16px 0; padding: 12px; 
+    background: var(--surface2); border-radius: 8px;
+    color: var(--text); font-size: 0.9rem;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px 20px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    max-width: 1200px;
+    margin: 0 auto 20px;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), #00e5b0, var(--accent));
+  }
+  .header-center { flex: 1; text-align: center; }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .header p { color: var(--text-muted); font-size: 0.85rem; }
+  .user-badge {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2);
+    padding: 8px 14px;
+    border-radius: 30px;
+    border: 1px solid var(--border);
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  .user-badge img { width: 28px; height: 28px; border-radius: 50%; }
+  .user-badge .role-badge {
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 0.72rem; font-weight: 700;
+  }
+  .role-super { background: rgba(248,81,73,0.2); color: var(--danger); }
+  .role-admin { background: rgba(0,200,150,0.2); color: var(--accent); }
+  .role-user { background: rgba(125,133,144,0.2); color: var(--text-muted); }
+  .btn-signout {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: none; color: var(--text-muted); cursor: pointer;
+    font-family: 'Cairo', sans-serif; font-size: 0.78rem;
+    transition: all 0.2s;
+  }
+  .btn-signout:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* Main Layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  label .required { color: var(--danger); margin-right: 3px; }
+
+  input, select, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.9rem;
+    padding: 10px 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,200,150,0.1);
+  }
+  select option { background: var(--surface2); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* Toggle */
+  .toggle-group { display: flex; gap: 8px; margin-bottom: 14px; }
+  .toggle-btn {
+    flex: 1; padding: 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface2); color: var(--text-muted);
+    cursor: pointer; font-family: 'Cairo', sans-serif;
+    font-size: 0.88rem; font-weight: 600; transition: all 0.2s; text-align: center;
+  }
+  .toggle-btn.active {
+    border-color: var(--accent);
+    background: rgba(0,200,150,0.1);
+    color: var(--accent);
+  }
+
+  .conditional { display: none; }
+  .conditional.show { display: block; }
+
+  .salary-toggle {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px; cursor: pointer; user-select: none;
+  }
+  .salary-toggle input[type=checkbox] {
+    width: 18px; height: 18px;
+    accent-color: var(--accent); cursor: pointer;
+  }
+  .salary-toggle span { font-size: 0.88rem; color: var(--text-muted); font-weight: 600; }
+
+  /* Templates section */
+  .templates-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .tpl-btn {
+    padding: 6px 14px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text-muted); font-family: 'Cairo', sans-serif;
+    font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+  }
+  .tpl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tpl-btn.save-btn { border-color: var(--warning); color: var(--warning); }
+  .tpl-btn.save-btn:hover { background: rgba(227,179,65,0.1); }
+  .tpl-btn.delete-btn { border-color: var(--danger); color: var(--danger); }
+
+  /* Output */
+  .output-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    font-family: 'Tajawal', sans-serif; font-size: 0.92rem;
+    line-height: 1.9; white-space: pre-wrap; min-height: 200px;
+    color: var(--text); direction: rtl;
+  }
+  .output-placeholder {
+    color: var(--text-muted); font-style: italic;
+    text-align: center; padding: 40px 0;
+  }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: none;
+    font-family: 'Cairo', sans-serif; font-size: 0.88rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #0d1117; flex: 1; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-copy { background: #25D366; color: white; flex: 1; }
+  .btn-copy:hover { background: #1ea855; }
+  .btn-whatsapp { background: #25D366; color: white; flex: 1; font-size: 0.95rem; }
+  .btn-whatsapp:hover { background: #1ea855; }
+  .btn-whatsapp-num { background: #128C7E; color: white; flex: 1; font-size: 0.95rem; }
+  .btn-whatsapp-num:hover { background: #0e6b5e; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent); color: #0d1117;
+    padding: 12px 24px; border-radius: 30px;
+    font-weight: 700; font-size: 0.9rem;
+    transition: transform 0.3s ease; z-index: 9999;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  .section-label {
+    font-size: 0.78rem; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px; margin-top: 16px;
+  }
+  .section-label:first-child { margin-top: 0; }
+  input::placeholder, textarea::placeholder { color: #4a5568; }
+
+  /* Pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .nav-tabs {
+    display: flex; gap: 8px; margin-bottom: 20px;
+    background: var(--surface); padding: 6px;
+    border-radius: var(--radius); border: 1px solid var(--border);
+    max-width: 1200px; margin: 0 auto 20px;
+    flex-wrap: wrap;
+  }
+  .nav-tab {
+    flex: 1; padding: 10px; text-align: center; border-radius: 8px;
+    cursor: pointer; font-family: 'Cairo', sans-serif;
+    font-size: 0.9rem; font-weight: 700; border: none;
+    background: transparent; color: var(--text-muted); transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-tab.active { background: var(--accent); color: #0d1117; }
+  .nav-tab.hidden-tab { display: none; }
+
+  /* Records */
+  .records-toolbar {
+    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
+  }
+  .records-toolbar input { flex: 1; min-width: 200px; }
+  .records-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  thead tr { background: var(--surface2); border-bottom: 2px solid var(--accent); }
+  th { padding: 12px 14px; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  td { padding: 10px 14px; color: var(--text); white-space: nowrap; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .badge-online { background: rgba(0,200,150,0.15); color: var(--accent); }
+  .badge-onsite { background: rgba(227,179,65,0.15); color: var(--warning); }
+  .empty-records { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+  .empty-records div { font-size: 2.5rem; margin-bottom: 10px; }
+
+  .time-picker-row { display: flex; gap: 8px; align-items: center; }
+  .time-display-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    color: var(--accent); font-size: 0.9rem;
+    font-weight: 700; white-space: nowrap;
+    min-width: 120px; text-align: center;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; width: 90%;
+    max-width: 540px; max-height: 85vh; overflow-y: auto; position: relative;
+  }
+  .modal-title {
+    font-size: 1rem; font-weight: 700; color: var(--accent);
+    margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .modal-close {
+    position: absolute; top: 14px; left: 14px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 1.2rem; cursor: pointer;
+  }
+  .modal-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: var(--surface2);
+    border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border);
+  }
+  .modal-item-info { flex: 1; }
+  .modal-item-name { font-weight: 700; font-size: 0.9rem; }
+  .modal-item-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+  .modal-add-row {
+    display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .modal-add-row input { flex: 1; min-width: 120px; }
+
+  .del-rec-btn {
+    background: none; border: none; color: var(--danger);
+    cursor: pointer; font-size: 1rem; padding: 4px 8px;
+    border-radius: 6px; transition: background 0.2s;
+  }
+  .del-rec-btn:hover { background: rgba(248,81,73,0.1); }
+
+  /* Admin Panel */
+  .admin-user-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .admin-user-top {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .admin-user-top img { width: 36px; height: 36px; border-radius: 50%; }
+  .admin-user-name { font-weight: 700; font-size: 0.92rem; }
+  .admin-user-email { font-size: 0.78rem; color: var(--text-muted); }
+  .perms-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px; margin-top: 8px;
+  }
+  .perm-check {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; background: var(--bg);
+    border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 0.82rem;
+  }
+  .perm-check input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+  .perm-check:has(input:checked) { border-color: var(--accent); background: rgba(0,200,150,0.07); color: var(--accent); }
+
+  /* Location */
+  .location-row { display: flex; gap: 8px; align-items: flex-start; }
+  .location-row input { flex: 1; }
+  .location-saved-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .loc-chip {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+  }
+  .loc-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .loc-chip-del {
+    color: var(--danger); font-size: 0.7rem; margin-right: 2px;
+    padding: 0 2px; cursor: pointer;
+  }
+  .loc-chip-del:hover { color: #ff6b6b; }
+
+  /* Maps picker modal */
+  #mapsPickerModal .modal { max-width: 620px; }
+  #mapsFrame { width: 100%; height: 380px; border: 1px solid var(--border); border-radius: 8px; }
+  .maps-input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .maps-input-row input { flex: 1; }
+
+  /* Disabled field */
+  input[readonly], input[disabled] {
+    background: #111 !important;
+    cursor: not-allowed !important;
+    color: var(--accent) !important;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<!-- Auth Overlay -->
+<div id="authOverlay">
+  <div class="auth-card">
+    <div style="font-size:3rem;margin-bottom:12px">📋</div>
+    <h2>نموذج رسائل المقابلات</h2>
+    <p>شركة المدينة مصراتة القابضة<br>سجّل دخولك بحساب جوجل للمتابعة</p>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      تسجيل الدخول بـ Google
+    </button>
+  </div>
+</div>
+
+<!-- Pending Approval Overlay -->
+<div id="pendingOverlay" class="hidden">
+  <div class="pending-card">
+    <div style="font-size:3rem;margin-bottom:12px">⏳</div>
+    <h2>في انتظار الموافقة</h2>
+    <div class="user-info" id="pendingUserInfo"></div>
+    <p>تم تسجيل حسابك بنجاح. في انتظار منح الصلاحيات من المدير.<br>يُرجى التواصل مع الأدمن لتفعيل حسابك.</p>
+    <button class="btn-signout" style="margin-top:20px" onclick="doSignOut()">تسجيل الخروج</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="appMain" style="display:none">
+
+<!-- Header -->
+<div class="header">
+  <div class="header-center">
+    <h1>📋 نموذج رسائل المقابلات</h1>
+    <p>شركة المدينة مصراتة القابضة — HR Department</p>
+  </div>
+  <div class="user-badge">
+    <img id="userAvatar" src="" alt="" onerror="this.style.display='none'">
+    <span id="userDisplayName">—</span>
+    <span id="userRoleBadge" class="role-badge"></span>
+    <button class="btn-signout" onclick="doSignOut()">خروج</button>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav-tabs" id="mainNav">
+  <button class="nav-tab active" onclick="showPage('form', this)">✏️ نموذج الرسالة</button>
+  <button class="nav-tab" onclick="showPage('records', this)" id="navRecords">📊 سجل المقابلات</button>
+  <button class="nav-tab hidden-tab" onclick="showPage('admin', this)" id="navAdmin">⚙️ إدارة المستخدمين</button>
+</div>
+
+<!-- PAGE 1: Form -->
+<div class="page active" id="page-form">
+<div class="main-grid">
+
+  <!-- Left: Form -->
+  <div class="card">
+    <div class="card-title"><span>✏️</span> بيانات المقابلة</div>
+
+    <div class="section-label">المرشح</div>
+    <div class="form-group">
+      <label><span class="required">*</span> اسم المرشح</label>
+      <input type="text" id="name" placeholder="مثال: أمين أحمد أبوساق" oninput="generateMessage()">
+    </div>
+    <div class="form-group">
+      <label>رقم التليفون</label>
+      <input type="text" id="phone" placeholder="اختياري" oninput="generateMessage()">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">القائمون بالمقابلات</div>
+    <div class="form-group">
+      <label>اختر القائم بالمقابلة</label>
+      <select id="recruiterSelect" onchange="onRecruiterChange()">
+        <option value="">— اختر —</option>
+      </select>
+    </div>
+    <div class="conditional" id="recruiterManualField">
+      <div class="two-col">
+        <div class="form-group">
+          <label>الاسم</label>
+          <input type="text" id="recruiterName" placeholder="مثال: محمود الدبركي" oninput="generateMessage()">
+        </div>
+        <div class="form-group">
+          <label>المسمى</label>
+          <input type="text" id="recruiterTitle" placeholder="مثال: HR Specialist" oninput="generateMessage()">
+        </div>
+      </div>
+    </div>
+    <button class="tpl-btn save-btn" id="btnManageRecruiters" onclick="openRecruiterManager()" style="margin-bottom:14px;font-size:0.78rem">⚙️ إدارة القائمين بالمقابلات</button>
+
+    <hr class="divider">
+    <div class="section-label">الوظيفة</div>
+    <div class="form-group">
+      <label><span class="required">*</span> اختر الوظيفة</label>
+      <select id="jobSelect" onchange="onJobSelectChange()">
+        <option value="">— اختر —</option>
+        <option value="__other__">✏️ أخرى (يدوي)</option>
+      </select>
+    </div>
+    <div id="jobManualFields">
+      <div class="form-group">
+        <label><span class="required">*</span> المسمى الوظيفي</label>
+        <input type="text" id="job" placeholder="مثال: محاسب، Help Desk Specialist" oninput="generateMessage()">
+      </div>
+      <div class="form-group">
+        <label>رابط الإعلان</label>
+        <input type="text" id="jobLink" placeholder="https://..." oninput="generateMessage()">
+      </div>
+    </div>
+    <button class="tpl-btn save-btn" id="btnManageJobs" onclick="openJobManager()" style="margin-bottom:14px;font-size:0.78rem">⚙️ إدارة الوظايف</button>
+
+    <div class="section-label">نوع المقابلة</div>
+    <div class="toggle-group" id="interviewTypeToggle">
+      <div class="toggle-btn active" data-val="online" onclick="setType('online', this)">🖥️ أونلاين</div>
+      <div class="toggle-btn" data-val="onsite" onclick="setType('onsite', this)">🏢 حضوري</div>
+    </div>
+
+    <!-- Online fields -->
+    <div class="conditional show" id="onlineFields">
+      <div class="form-group">
+        <label>تطبيق المقابلة</label>
+        <select id="meetApp" onchange="onMeetAppChange()">
+          <option value="Google Meet">Google Meet</option>
+          <option value="Zoom">Zoom</option>
+          <option value="Microsoft Teams">Microsoft Teams</option>
+          <option value="other">أخرى...</option>
+        </select>
+      </div>
+      <div class="conditional" id="otherAppField">
+        <div class="form-group">
+          <label>اسم التطبيق</label>
+          <input type="text" id="otherApp" placeholder="اكتب اسم التطبيق" oninput="generateMessage()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Onsite fields -->
+    <div class="conditional" id="onsiteFields">
+      <div class="form-group">
+        <label>موقع المقابلة (Google Maps)</label>
+        <div class="location-row">
+          <input type="text" id="locationLink" placeholder="https://maps.app.goo.gl/..." oninput="generateMessage()">
+          <button class="btn btn-secondary" onclick="openMapsPicker()" style="white-space:nowrap;padding:10px 12px;font-size:0.8rem">🗺️ اختر</button>
+        </div>
+        <div class="location-saved-list" id="savedLocationsList"></div>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">الموعد</div>
+    <div class="form-group">
+      <label><span class="required">*</span> التاريخ</label>
+      <input type="date" id="datePicker" onchange="onDateChange()">
+    </div>
+    <div class="two-col">
+      <div class="form-group">
+        <label>اليوم (تلقائي)</label>
+        <input type="text" id="dayName" readonly placeholder="يتحدد من التاريخ">
+      </div>
+      <div class="form-group">
+        <label>التاريخ (تلقائي)</label>
+        <input type="text" id="date" readonly placeholder="يتحدد من التاريخ">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>التوقيت بتوقيت ليبيا</label>
+      <div class="time-picker-row">
+        <input type="time" id="timeLibyaRaw" onchange="onTimeChange('Libya')" oninput="onTimeChange('Libya')" style="flex:1">
+        <div class="time-display-badge" id="timeLibyaBadge">—</div>
+      </div>
+      <input type="hidden" id="timeLibya">
+    </div>
+    <div class="form-group">
+      <label>التوقيت بتوقيت مصر</label>
+      <div class="time-picker-row">
+        <input type="time" id="timeEgyptRaw" onchange="onTimeChange('Egypt')" oninput="onTimeChange('Egypt')" style="flex:1">
+        <div class="time-display-badge" id="timeEgyptBadge">—</div>
+      </div>
+      <input type="hidden" id="timeEgypt">
+    </div>
+    <div class="form-group">
+      <label>مدة المقابلة</label>
+      <div class="time-picker-row">
+        <input type="number" id="durationNum" min="1" max="999" placeholder="مثال: 30" style="flex:1" oninput="onDurationChange()">
+        <select id="durationUnit" onchange="onDurationChange()" style="flex:1">
+          <option value="دقيقة">دقيقة</option>
+          <option value="ساعة">ساعة</option>
+        </select>
+        <input type="text" id="duration" readonly placeholder="تلقائي" style="flex:1.5">
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">مصدر التوظيف</div>
+    <div class="form-group">
+      <label>موقع التوظيف</label>
+      <input type="text" id="jobSource" placeholder="مثال: Wuzzuf، Libyan Jobs" oninput="generateMessage()">
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">خيارات إضافية</div>
+    <label class="salary-toggle">
+      <input type="checkbox" id="hasSalary" onchange="generateMessage()">
+      <span>الإعلان يتضمن رينج الراتب والمزايا</span>
+    </label>
+  </div>
+
+  <!-- Right: Output -->
+  <div class="card">
+    <div class="card-title"><span>💬</span> الرسالة الجاهزة</div>
+    <div id="templatesBar" class="templates-bar">
+      <button class="tpl-btn save-btn" onclick="saveTemplate()">💾 حفظ كـ template</button>
+    </div>
+
+    <div class="output-box" id="output">
+      <div class="output-placeholder">املأ البيانات في اليسار وستظهر الرسالة هنا تلقائياً ✨</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="generateMessage()">⚡ توليد الرسالة</button>
+      <button class="btn btn-secondary" onclick="copyMessage()">📋 نسخ</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-whatsapp-num" onclick="sendWhatsAppWithNumber()">📱 إرسال برقم</button>
+      <button class="btn btn-whatsapp" onclick="sendWhatsAppGeneral()">💬 فتح واتساب</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="clearForm()">🗑️ مسح الكل</button>
+    </div>
+  </div>
+
+</div>
+</div><!-- end page-form -->
+
+<!-- PAGE 2: Records -->
+<div class="page" id="page-records">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="card">
+      <div class="card-title"><span>📊</span> سجل المقابلات المرسلة</div>
+      <div class="records-toolbar">
+        <input type="text" id="searchRecords" placeholder="🔍 ابحث باسم أو وظيفة..." oninput="renderRecords()">
+        <button class="btn btn-secondary" onclick="exportExcel()" style="white-space:nowrap">📥 تصدير Excel</button>
+        <button class="btn btn-secondary" id="btnClearRecords" onclick="clearAllRecords()" style="white-space:nowrap;border-color:var(--danger);color:var(--danger)">🗑️ مسح الكل</button>
+      </div>
+      <div class="records-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>اسم المرشح</th><th>رقم التليفون</th><th>الوظيفة</th>
+              <th>تاريخ المقابلة</th><th>الوقت</th><th>نوع المقابلة</th>
+              <th>موقع التوظيف</th><th>رابط الإعلان</th><th>تاريخ الإرسال</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyRecords" class="empty-records" style="display:none">
+        <div>📭</div>
+        <p>لا توجد سجلات بعد<br><small>كل مرة تبعت رسالة للواتساب هتظهر هنا</small></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: Admin -->
+<div class="page" id="page-admin">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="card">
+      <div class="card-title"><span>⚙️</span> إدارة المستخدمين والصلاحيات</div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">
+        كل مستخدم سجّل بجوجل يظهر هنا. حدّد صلاحياته بالتعليم على المربعات ثم اضغط حفظ.
+      </p>
+      <div id="adminUsersList">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ جاري التحميل...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end appMain -->
+
+<!-- Recruiter Manager Modal -->
+<div class="modal-overlay" id="recruiterModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('recruiterModal')">✕</button>
+    <div class="modal-title">👤 إدارة القائمين بالمقابلات</div>
+    <div id="recruiterList"></div>
+    <div class="modal-add-row">
+      <input type="text" id="newRecruiterName" placeholder="الاسم">
+      <input type="text" id="newRecruiterTitle" placeholder="المسمى (مثال: HR Specialist)">
+      <button class="btn btn-primary" onclick="addRecruiter()" style="flex:none;padding:10px 16px">➕ إضافة</button>
+    </div>
+  </div>
+</div>
+
+<!-- Job Manager Modal -->
+<div class="modal-overlay" id="jobModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('jobModal')">✕</button>
+    <div class="modal-title">💼 إدارة الوظايف</div>
+    <div id="jobList"></div>
+    <div class="modal-add-row">
+      <input type="text" id="newJobName" placeholder="اسم الوظيفة">
+      <input type="text" id="newJobLink" placeholder="رابط الإعلان (اختياري)">
+      <button class="btn btn-primary" onclick="addJob()" style="flex:none;padding:10px 16px">➕ إضافة</button>
+    </div>
+  </div>
+</div>
+
+<!-- Maps Picker Modal -->
+<div class="modal-overlay" id="mapsPickerModal">
+  <div class="modal" style="max-width:620px">
+    <button class="modal-close" onclick="closeModal('mapsPickerModal')">✕</button>
+    <div class="modal-title">🗺️ اختر موقع المقابلة</div>
+    <div class="maps-input-row">
+      <input type="text" id="mapsSearchInput" placeholder="ابحث عن الموقع أو الفر ع..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
+      <button class="btn btn-primary" onclick="searchMapsLocation()" style="flex:none;padding:10px 16px">🔍 بحث</button>
+    </div>
+    <iframe id="mapsFrame"
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2000!2d15.0893!3d32.3754!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDIyJzMxLjUiTiAxNcKwMDUnMjEuNSJF!5e0!3m2!1sar!2sly!4v1234567890"
+      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      style="width:100%;height:320px;border:1px solid var(--border);border-radius:8px">
+    </iframe>
+    <div style="margin-top:12px">
+      <label style="text-transform:none;font-size:0.85rem;margin-bottom:6px;color:var(--text)">الصق رابط Google Maps مباشرةً:</label>
+      <div class="maps-input-row" style="margin-bottom:0">
+        <input type="text" id="mapsLinkInput" placeholder="https://maps.app.goo.gl/... أو https://www.google.com/maps/...">
+        <button class="btn btn-primary" onclick="confirmMapLocation()" style="flex:none;padding:10px 14px;white-space:nowrap">✅ تأكيد</button>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <label style="text-transform:none;font-size:0.82rem;color:var(--text-muted)">اسم الموقع (للحفظ في القائمة)</label>
+      <input type="text" id="mapsLocationName" placeholder="مثال: مقر الشركة الرئيسي، فرع مصراتة...">
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-secondary" onclick="confirmMapLocation()">✅ استخدام الرابط فقط</button>
+      <button class="btn btn-primary" onclick="saveMapLocation()">💾 استخدام وحفظ في القائمة</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
+    query, orderBy, setDoc, getDoc, updateDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ==================== FIREBASE ====================
+  const firebaseConfig = {
+    apiKey: "AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk",
+    authDomain: "hr-send-to-what-sapp.firebaseapp.com",
+    projectId: "hr-send-to-what-sapp",
+    storageBucket: "hr-send-to-what-sapp.firebasestorage.app",
+    messagingSenderId: "168348988424",
+    appId: "1:168348988424:web:88084164e64484b8428dbd"
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // ==================== STATE ====================
+  let currentUser = null;
+  let currentUserData = null; // Firestore profile + permissions
+  let interviewType = 'online';
+  let templates = [];
+  let recruiters = [];
+  let jobs = [];
+  let savedLocations = [];
+  let records = [];
+
+  // Super admin email — change this to yours
+  const SUPER_ADMIN_EMAIL = "Mahmoudeldeberky@gmail.com";
+
+  // Permission keys
+  const ALL_PERMS = [
+    { key: 'canViewRecords',      label: '👁️ عرض السجلات' },
+    { key: 'canDeleteRecords',    label: '🗑️ حذف السجلات' },
+    { key: 'canExportExcel',      label: '📥 تصدير Excel' },
+    { key: 'canManageRecruiters', label: '👤 إدارة القائمين' },
+    { key: 'canManageJobs',       label: '💼 إدارة الوظايف' },
+    { key: 'canUseTemplates',     label: '📂 استخدام Templates' },
+    { key: 'canSaveLocations',    label: '📍 حفظ المواقع' },
+    { key: 'isAdmin',             label: '⚙️ أدمن (إدارة مستخدمين)' },
+  ];
+
+  // ==================== AUTH ====================
+  window.signInWithGoogle = async function() {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      showToast('⚠️ خطأ في تسجيل الدخول');
+    }
+  };
+
+  window.doSignOut = async function() {
+    await signOut(auth);
+    location.reload();
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      showScreen('auth');
+      return;
+    }
+    currentUser = user;
+
+    // Ensure user doc exists
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      // New user — create pending profile
+      const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+      const newProfile = {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email,
+        photo: user.photoURL || '',
+        approved: isSuperAdmin,
+        role: isSuperAdmin ? 'superadmin' : 'pending',
+        createdAt: serverTimestamp(),
+        permissions: isSuperAdmin ? getAllPerms(true) : getAllPerms(false)
+      };
+      await setDoc(userRef, newProfile);
+      currentUserData = newProfile;
+    } else {
+      currentUserData = snap.data();
+      // Superadmin always approved
+      if (user.email === SUPER_ADMIN_EMAIL && !currentUserData.approved) {
+        await updateDoc(userRef, { approved: true, role: 'superadmin', permissions: getAllPerms(true) });
+        currentUserData.approved = true;
+        currentUserData.role = 'superadmin';
+        currentUserData.permissions = getAllPerms(true);
+      }
+    }
+
+    if (!currentUserData.approved) {
+      showScreen('pending');
+      document.getElementById('pendingUserInfo').textContent =
+        `${currentUserData.name} — ${currentUserData.email}`;
+      return;
+    }
+
+    // Show app
+    showScreen('app');
+    initApp();
+  });
+
+  function getAllPerms(val) {
+    const p = {};
+    ALL_PERMS.forEach(pp => p[pp.key] = val);
+    return p;
+  }
+
+  function hasPerm(key) {
+    if (!currentUserData) return false;
+    if (currentUserData.role === 'superadmin') return true;
+    return !!(currentUserData.permissions && currentUserData.permissions[key]);
+  }
+
+  function showScreen(screen) {
+    document.getElementById('authOverlay').classList.toggle('hidden', screen !== 'auth');
+    document.getElementById('pendingOverlay').classList.toggle('hidden', screen !== 'pending');
+    document.getElementById('appMain').style.display = screen === 'app' ? 'block' : 'none';
+  }
+
+  // ==================== INIT ====================
+  async function initApp() {
+    // Header
+    document.getElementById('userDisplayName').textContent = currentUser.displayName || currentUser.email;
+    if (currentUser.photoURL) document.getElementById('userAvatar').src = currentUser.photoURL;
+    const roleLabel = { superadmin: 'سوبر أدمن', admin: 'أدمن', user: 'مستخدم', pending: 'معلق' };
+    const roleClass = { superadmin: 'role-super', admin: 'role-admin', user: 'role-user', pending: 'role-user' };
+    const badge = document.getElementById('userRoleBadge');
+    badge.textContent = roleLabel[currentUserData.role] || 'مستخدم';
+    badge.className = 'role-badge ' + (roleClass[currentUserData.role] || 'role-user');
+
+    // Nav visibility
+    if (hasPerm('canViewRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
+    if (hasPerm('isAdmin') || currentUserData.role === 'superadmin') {
+      document.getElementById('navAdmin').classList.remove('hidden-tab');
+    }
+
+    // Manage buttons visibility
+    if (!hasPerm('canManageRecruiters')) document.getElementById('btnManageRecruiters').style.display = 'none';
+    if (!hasPerm('canManageJobs')) document.getElementById('btnManageJobs').style.display = 'none';
+
+    // Load user data from Firestore
+    await Promise.all([loadUserData(), loadRecords()]);
+  }
+
+  async function loadUserData() {
+    const uid = currentUser.uid;
+    try {
+      // Templates
+      const tSnap = await getDocs(collection(db, 'users', uid, 'templates'));
+      templates = tSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+
+      // Recruiters
+      const rSnap = await getDocs(collection(db, 'users', uid, 'recruiters'));
+      recruiters = rSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+
+      // Jobs
+      const jSnap = await getDocs(collection(db, 'users', uid, 'jobs'));
+      jobs = jSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+
+      // Saved locations
+      const lSnap = await getDocs(collection(db, 'users', uid, 'locations'));
+      savedLocations = lSnap.docs.map(d => ({ ...d.data(), _id: d.id }));
+
+      renderTemplates();
+      renderRecruiterSelect();
+      renderJobSelect();
+      renderSavedLocations();
+    } catch(e) {
+      console.error('loadUserData error', e);
+    }
+  }
+
+  // ==================== DATE ====================
+  const arabicDays = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const arabicMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+  window.onDateChange = function() {
+    const val = document.getElementById('datePicker').value;
+    if (!val) {
+      document.getElementById('dayName').value = '';
+      document.getElementById('date').value = '';
+      generateMessage(); return;
+    }
+    const d = new Date(val + 'T12:00:00');
+    document.getElementById('dayName').value = arabicDays[d.getDay()];
+    const day = String(d.getDate()).padStart(2,'0');
+    document.getElementById('date').value = `${day} ${arabicMonths[d.getMonth()]} ${d.getFullYear()}`;
+    generateMessage();
+  };
+
+  // ==================== TIME ====================
+  function getArabicPeriod(hour) {
+    if (hour >= 5 && hour < 12) return 'صباحاً';
+    if (hour >= 12 && hour < 14) return 'ظهراً';
+    if (hour >= 14 && hour < 18) return 'عصراً';
+    return 'مساءً';
+  }
+
+  window.onTimeChange = function(zone) {
+    const raw = document.getElementById(`time${zone}Raw`).value;
+    const badge = document.getElementById(`time${zone}Badge`);
+    const hidden = document.getElementById(`time${zone}`);
+    if (!raw) {
+      badge.textContent = '—';
+      hidden.value = '';
+      generateMessage(); return;
+    }
+    let [h, m] = raw.split(':').map(Number);
+    const period = getArabicPeriod(h);
+    let h12 = h % 12 || 12;
+    const formatted = `${h12}:${String(m).padStart(2,'0')} ${period}`;
+    badge.textContent = formatted;
+    hidden.value = formatted;
+    generateMessage();
+  };
+
+  window.onDurationChange = function() {
+    const num = document.getElementById('durationNum').value;
+    const unit = document.getElementById('durationUnit').value;
+    if (!num) { document.getElementById('duration').value = ''; generateMessage(); return; }
+    document.getElementById('duration').value = `${num} ${unit}`;
+    generateMessage();
+  };
+
+  // ==================== GENERATE ====================
+  window.generateMessage = function() {
+    const name = v('name'), job = v('job'), dayName = v('dayName'), date = v('date');
+    const timeLibya = v('timeLibya'), timeEgypt = v('timeEgypt'), duration = v('duration');
+    const jobSource = v('jobSource'), jobLink = v('jobLink');
+    const hasSalary = document.getElementById('hasSalary').checked;
+    const recruiterName = v('recruiterName') || 'محمود الدبركي';
+    const recruiterTitle = v('recruiterTitle') || 'HR';
+
+    if (!name || !job) {
+      document.getElementById('output').innerHTML = '<div class="output-placeholder">اكتب اسم المرشح والوظيفة على الأقل ✨</div>';
+      return;
+    }
+
+    let msg = '';
+    msg += `السلام عليكم ورحمة الله\n`;
+    msg += `اهلا بك استاذ : ${name}\n`;
+    msg += `معك ${recruiterName} ${recruiterTitle} من شركة المدينة مصراتة القابضة\n`;
+
+    if (jobSource) {
+      msg += `انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك عبر موقع : (${jobSource}) `;
+    } else {
+      msg += `انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك `;
+    }
+
+    if (interviewType === 'online') {
+      const app = v('meetApp') === 'other' ? (v('otherApp') || 'Google Meet') : v('meetApp');
+      msg += `ونرغب في تحديد موعد مقابلة (اونلاين) عبر تطبيق ${app}\n`;
+    } else {
+      msg += `ونرغب في تحديد موعد مقابلة في مقر الشركة في مدينة مصراتة - ليبيا\n`;
+      const loc = v('locationLink');
+      if (loc) msg += `موقع مكان المقابلة : ${loc}\n`;
+    }
+
+    msg += `\nالوظيفة: ${job}\n`;
+    msg += `\nتفاصيل الموعد:\n`;
+    if (dayName) msg += `اليوم : ${dayName}\n`;
+    if (date) msg += `الموافق : ${date}\n`;
+
+    if (timeLibya && timeEgypt) {
+      msg += `الساعة : ${timeLibya} بتوقيت ليبيا – ${timeEgypt} بتوقيت مصر\n`;
+    } else if (timeLibya) {
+      msg += `الساعة : ${timeLibya} بتوقيت ليبيا\n`;
+    } else if (timeEgypt) {
+      msg += `الساعة : ${timeEgypt} بتوقيت مصر\n`;
+    }
+
+    if (duration) msg += `مدة المقابلة: ${duration}\n`;
+    if (jobSource) msg += `مكان التوظيف: ${jobSource}\n`;
+    msg += `نوع العمل : دوام كامل - صباحي\n`;
+    msg += `نوع المقابلة : مقابلة اولى مع لجنة التوظيف تشمل نقاط فنية وشخصية و ادارية\n`;
+
+    if (interviewType === 'online') {
+      msg += `\nمنتظر تأكيد الموعد لارسال رابط الدعوة والمقابلة\n`;
+    } else {
+      msg += `\nمنتظر تأكيد الموعد\n`;
+    }
+
+    msg += `\n`;
+    if (hasSalary) {
+      msg += `يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات - رينج الراتب - المزايا مع الراتب) والتأكد من توافقها معك لأنه في حالة اختيارك للتعين سوف يكون العرض الوظيفي في حدود ما هو مكتوب.\n`;
+    } else {
+      msg += `يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات) والتأكد من توافقها معك.\n`;
+    }
+
+    if (jobLink) msg += `رابط الاعلان: ${jobLink}\n`;
+    if (interviewType === 'online') {
+      msg += `\nيرجى التأكد من فتح الكاميرا اثناء المقابلة وجودة الانترنت لضمان دقة التقييم.\n`;
+    }
+
+    msg += `\nمع التمنيات بالتوفيق ونتطلع للعمل معكم\n`;
+    msg += `دهانات المدينة مصراتة - https://almadinamisurata.com/`;
+
+    document.getElementById('output').innerText = msg;
+  };
+
+  function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+
+  // ==================== WHATSAPP ====================
+  window.sendWhatsAppWithNumber = async function() {
+    const text = document.getElementById('output').innerText;
+    if (!text || text.includes('اكتب اسم')) { showToast('⚠️ ولّد الرسالة الأول'); return; }
+    const phone = v('phone').replace(/\D/g, '');
+    if (!phone) { showToast('⚠️ اكتب رقم التليفون الأول'); return; }
+    await saveRecord();
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    showToast('✅ تم الإرسال وتسجيل المقابلة!');
+  };
+
+  window.sendWhatsAppGeneral = async function() {
+    const text = document.getElementById('output').innerText;
+    if (!text || text.includes('اكتب اسم')) { showToast('⚠️ ولّد الرسالة الأول'); return; }
+    await saveRecord();
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    showToast('✅ تم الإرسال وتسجيل المقابلة!');
+  };
+
+  window.copyMessage = function() {
+    const text = document.getElementById('output').innerText;
+    if (!text || text.includes('اكتب اسم')) { showToast('⚠️ لا توجد رسالة للنسخ'); return; }
+    navigator.clipboard.writeText(text).then(() => showToast('✅ تم النسخ! الصقها في الواتساب'));
+  };
+
+  window.clearForm = function() {
+    document.querySelectorAll('input').forEach(i => {
+      if (i.type === 'checkbox') i.checked = false;
+      else i.value = '';
+    });
+    document.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    document.getElementById('timeLibyaBadge').textContent = '—';
+    document.getElementById('timeEgyptBadge').textContent = '—';
+    document.getElementById('output').innerHTML = '<div class="output-placeholder">املأ البيانات في اليسار وستظهر الرسالة هنا تلقائياً ✨</div>';
+  };
+
+  // ==================== TEMPLATES ====================
+  window.saveTemplate = async function() {
+    if (!hasPerm('canUseTemplates')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    const name = prompt('اسم الـ template:');
+    if (!name) return;
+    const state = getFormState();
+    state._name = name;
+    try {
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'templates'), state);
+      state._id = ref.id;
+      templates.push(state);
+      renderTemplates();
+      showToast('💾 تم حفظ الـ template!');
+    } catch(e) { showToast('⚠️ خطأ في الحفظ'); }
+  };
+
+  window.loadTemplate = function(idx) {
+    const t = templates[idx];
+    if (!t) return;
+    setFormState(t);
+    generateMessage();
+    showToast('📂 تم تحميل الـ template!');
+  };
+
+  window.deleteTemplate = async function(idx) {
+    if (!confirm('مسح الـ template؟')) return;
+    const t = templates[idx];
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'templates', t._id));
+      templates.splice(idx, 1);
+      renderTemplates();
+    } catch(e) { showToast('⚠️ خطأ في المسح'); }
+  };
+
+  function renderTemplates() {
+    if (!hasPerm('canUseTemplates')) { document.getElementById('templatesBar').style.display = 'none'; return; }
+    const bar = document.getElementById('templatesBar');
+    bar.innerHTML = '<button class="tpl-btn save-btn" onclick="saveTemplate()">💾 حفظ كـ template</button>';
+    templates.forEach((t, i) => {
+      bar.innerHTML += `
+        <div style="display:inline-flex;align-items:center;gap:4px">
+          <button class="tpl-btn" onclick="loadTemplate(${i})">📂 ${t._name}</button>
+          <button class="tpl-btn delete-btn" onclick="deleteTemplate(${i})" style="padding:6px 8px">✕</button>
+        </div>`;
+    });
+  }
+
+  function getFormState() {
+    return {
+      name: v('name'), phone: v('phone'), job: v('job'),
+      interviewType,
+      meetApp: v('meetApp'), otherApp: v('otherApp'),
+      locationLink: v('locationLink'),
+      datePicker: v('datePicker'), dayName: v('dayName'), date: v('date'),
+      timeLibyaRaw: v('timeLibyaRaw'), timeEgyptRaw: v('timeEgyptRaw'),
+      timeLibya: v('timeLibya'), timeEgypt: v('timeEgypt'),
+      duration: v('duration'), durationNum: v('durationNum'), durationUnit: v('durationUnit'),
+      jobSource: v('jobSource'), jobLink: v('jobLink'),
+      hasSalary: document.getElementById('hasSalary').checked
+    };
+  }
+
+  function setFormState(s) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('name', s.name); set('phone', s.phone); set('job', s.job);
+    set('meetApp', s.meetApp); set('otherApp', s.otherApp);
+    set('locationLink', s.locationLink);
+    set('datePicker', s.datePicker); set('dayName', s.dayName); set('date', s.date);
+    set('timeLibyaRaw', s.timeLibyaRaw); set('timeEgyptRaw', s.timeEgyptRaw);
+    set('duration', s.duration); set('durationNum', s.durationNum); set('durationUnit', s.durationUnit);
+    set('jobSource', s.jobSource); set('jobLink', s.jobLink);
+    document.getElementById('hasSalary').checked = s.hasSalary || false;
+
+    // Refresh time badges
+    if (s.timeLibyaRaw) onTimeChange('Libya');
+    if (s.timeEgyptRaw) onTimeChange('Egypt');
+
+    // Set interview type
+    const type = s.interviewType || 'online';
+    const btn = document.querySelector(`.toggle-btn[data-val="${type}"]`);
+    if (btn) setType(type, btn);
+  }
+
+  // ==================== TYPE TOGGLE ====================
+  window.setType = function(type, btn) {
+    interviewType = type;
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('onlineFields').classList.toggle('show', type === 'online');
+    document.getElementById('onsiteFields').classList.toggle('show', type === 'onsite');
+    generateMessage();
+  };
+
+  window.onMeetAppChange = function() {
+    document.getElementById('otherAppField').classList.toggle('show', document.getElementById('meetApp').value === 'other');
+    generateMessage();
+  };
+
+  // ==================== RECRUITERS ====================
+  function renderRecruiterSelect() {
+    const sel = document.getElementById('recruiterSelect');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— اختر —</option>';
+    recruiters.forEach((r, i) => sel.innerHTML += `<option value="${i}">${r.name} - ${r.title}</option>`);
+    sel.innerHTML += '<option value="__other__">✏️ يدوي</option>';
+    sel.value = cur;
+  }
+
+  window.onRecruiterChange = function() {
+    const val = document.getElementById('recruiterSelect').value;
+    const manualField = document.getElementById('recruiterManualField');
+    if (val === '__other__') {
+      manualField.classList.add('show');
+      document.getElementById('recruiterName').value = '';
+      document.getElementById('recruiterTitle').value = '';
+    } else if (val !== '') {
+      manualField.classList.remove('show');
+      const r = recruiters[parseInt(val)];
+      document.getElementById('recruiterName').value = r.name;
+      document.getElementById('recruiterTitle').value = r.title;
+    } else {
+      manualField.classList.remove('show');
+    }
+    generateMessage();
+  };
+
+  window.openRecruiterManager = function() {
+    if (!hasPerm('canManageRecruiters')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    renderRecruiterList();
+    document.getElementById('recruiterModal').classList.add('open');
+  };
+
+  function renderRecruiterList() {
+    const list = document.getElementById('recruiterList');
+    if (!recruiters.length) { list.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:16px">لا يوجد قائمون بعد</p>'; return; }
+    list.innerHTML = recruiters.map((r, i) => `
+      <div class="modal-item">
+        <div class="modal-item-info">
+          <div class="modal-item-name">${r.name}</div>
+          <div class="modal-item-sub">${r.title}</div>
+        </div>
+        <button class="del-rec-btn" onclick="deleteRecruiter(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  window.addRecruiter = async function() {
+    const name = document.getElementById('newRecruiterName').value.trim();
+    const title = document.getElementById('newRecruiterTitle').value.trim();
+    if (!name) { showToast('⚠️ اكتب الاسم'); return; }
+    try {
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'recruiters'), { name, title: title || 'HR' });
+      recruiters.push({ name, title: title || 'HR', _id: ref.id });
+      document.getElementById('newRecruiterName').value = '';
+      document.getElementById('newRecruiterTitle').value = '';
+      renderRecruiterList(); renderRecruiterSelect();
+      showToast('✅ تم إضافة القائم بالمقابلة');
+    } catch(e) { showToast('⚠️ خطأ في الإضافة'); }
+  };
+
+  window.deleteRecruiter = async function(i) {
+    const r = recruiters[i];
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'recruiters', r._id));
+      recruiters.splice(i, 1);
+      renderRecruiterList(); renderRecruiterSelect();
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); }
+  };
+
+  // ==================== JOBS ====================
+  function renderJobSelect() {
+    const sel = document.getElementById('jobSelect');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— اختر —</option>';
+    jobs.forEach((j, i) => sel.innerHTML += `<option value="${i}">${j.name}</option>`);
+    sel.innerHTML += '<option value="__other__">✏️ أخرى (يدوي)</option>';
+    if (jobs.find((j,i) => String(i) === cur) || cur === '__other__') sel.value = cur;
+  }
+
+  window.onJobSelectChange = function() {
+    const val = document.getElementById('jobSelect').value;
+    if (val === '__other__' || val === '') {
+      document.getElementById('job').value = '';
+      document.getElementById('jobLink').value = '';
+    } else {
+      const j = jobs[parseInt(val)];
+      document.getElementById('job').value = j.name;
+      document.getElementById('jobLink').value = j.link || '';
+    }
+    generateMessage();
+  };
+
+  window.openJobManager = function() {
+    if (!hasPerm('canManageJobs')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    renderJobList();
+    document.getElementById('jobModal').classList.add('open');
+  };
+
+  function renderJobList() {
+    const list = document.getElementById('jobList');
+    if (!jobs.length) { list.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:16px">لا توجد وظايف بعد</p>'; return; }
+    list.innerHTML = jobs.map((j, i) => `
+      <div class="modal-item">
+        <div class="modal-item-info">
+          <div class="modal-item-name">${j.name}</div>
+          <div class="modal-item-sub">${j.link ? `<a href="${j.link}" target="_blank" style="color:var(--accent)">🔗 رابط</a>` : 'بدون رابط'}</div>
+        </div>
+        <button class="del-rec-btn" onclick="deleteJob(${i})">✕</button>
+      </div>`).join('');
+  }
+
+  window.addJob = async function() {
+    const name = document.getElementById('newJobName').value.trim();
+    const link = document.getElementById('newJobLink').value.trim();
+    if (!name) { showToast('⚠️ اكتب اسم الوظيفة'); return; }
+    try {
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'jobs'), { name, link });
+      jobs.push({ name, link, _id: ref.id });
+      document.getElementById('newJobName').value = '';
+      document.getElementById('newJobLink').value = '';
+      renderJobList(); renderJobSelect();
+      showToast('✅ تم إضافة الوظيفة');
+    } catch(e) { showToast('⚠️ خطأ في الإضافة'); }
+  };
+
+  window.deleteJob = async function(i) {
+    const j = jobs[i];
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'jobs', j._id));
+      jobs.splice(i, 1);
+      renderJobList(); renderJobSelect();
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); }
+  };
+
+  // ==================== SAVED LOCATIONS ====================
+  function renderSavedLocations() {
+    const container = document.getElementById('savedLocationsList');
+    if (!hasPerm('canSaveLocations') || !savedLocations.length) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = savedLocations.map((loc, i) => `
+      <div class="loc-chip" onclick="selectSavedLocation(${i})">
+        📍 ${loc.name}
+        <span class="loc-chip-del" onclick="event.stopPropagation();deleteSavedLocation(${i})">✕</span>
+      </div>`).join('');
+  }
+
+  window.selectSavedLocation = function(i) {
+    document.getElementById('locationLink').value = savedLocations[i].url;
+    generateMessage();
+    showToast('📍 تم اختيار الموقع');
+  };
+
+  window.deleteSavedLocation = async function(i) {
+    const loc = savedLocations[i];
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'locations', loc._id));
+      savedLocations.splice(i, 1);
+      renderSavedLocations();
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); }
+  };
+
+  // ==================== MAPS PICKER ====================
+  window.openMapsPicker = function() {
+    document.getElementById('mapsLinkInput').value = v('locationLink');
+    document.getElementById('mapsLocationName').value = '';
+    document.getElementById('mapsPickerModal').classList.add('open');
+  };
+
+  window.searchMapsLocation = function() {
+    const q = document.getElementById('mapsSearchInput').value.trim();
+    if (!q) return;
+    const encoded = encodeURIComponent(q);
+    document.getElementById('mapsFrame').src =
+      `https://www.google.com/maps/embed/v1/search?key=AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk&q=${encoded}&language=ar`;
+  };
+
+  window.confirmMapLocation = function() {
+    const url = document.getElementById('mapsLinkInput').value.trim();
+    if (!url) { showToast('⚠️ الصق رابط الموقع الأول'); return; }
+    document.getElementById('locationLink').value = url;
+    generateMessage();
+    closeModal('mapsPickerModal');
+    showToast('📍 تم تحديد الموقع');
+  };
+
+  window.saveMapLocation = async function() {
+    const url = document.getElementById('mapsLinkInput').value.trim();
+    const name = document.getElementById('mapsLocationName').value.trim() || 'موقع ' + (savedLocations.length + 1);
+    if (!url) { showToast('⚠️ الصق رابط الموقع الأول'); return; }
+    if (!hasPerm('canSaveLocations')) {
+      document.getElementById('locationLink').value = url;
+      generateMessage();
+      closeModal('mapsPickerModal');
+      showToast('📍 تم تحديد الموقع (بدون حفظ)');
+      return;
+    }
+    try {
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'locations'), { name, url });
+      savedLocations.push({ name, url, _id: ref.id });
+      document.getElementById('locationLink').value = url;
+      generateMessage();
+      renderSavedLocations();
+      closeModal('mapsPickerModal');
+      showToast('💾 تم حفظ الموقع في القائمة!');
+    } catch(e) { showToast('⚠️ خطأ في الحفظ'); }
+  };
+
+  // ==================== RECORDS ====================
+  async function loadRecords() {
+    if (!hasPerm('canViewRecords')) return;
+    try {
+      const q = query(collection(db, 'interviews'), orderBy('timestamp', 'desc'));
+      const snap = await getDocs(q);
+      records = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+      renderRecords();
+    } catch(e) { console.error('loadRecords', e); }
+  }
+
+  async function saveRecord() {
+    const rec = {
+      timestamp: Date.now(),
+      sentAt: new Date().toLocaleString('ar-EG'),
+      sentBy: currentUser.email,
+      sentByName: currentUser.displayName || currentUser.email,
+      name: v('name'), phone: v('phone'), job: v('job'),
+      date: v('date'), dayName: v('dayName'),
+      timeLibya: v('timeLibya'), timeEgypt: v('timeEgypt'),
+      interviewType, jobSource: v('jobSource'), jobLink: v('jobLink'),
+    };
+    try {
+      const docRef = await addDoc(collection(db, 'interviews'), rec);
+      rec._docId = docRef.id;
+      records.unshift(rec);
+      renderRecords();
+    } catch(e) { console.error('saveRecord', e); }
+  }
+
+  window.renderRecords = function() {
+    if (!hasPerm('canViewRecords')) return;
+    const q = document.getElementById('searchRecords')?.value?.toLowerCase() || '';
+    const filtered = records.filter(r =>
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.job||'').toLowerCase().includes(q) ||
+      (r.jobSource||'').toLowerCase().includes(q)
+    );
+    const tbody = document.getElementById('recordsBody');
+    const empty = document.getElementById('emptyRecords');
+    if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map((r, i) => `
+      <tr>
+        <td style="color:var(--text-muted)">${filtered.length - i}</td>
+        <td><strong>${r.name||'—'}</strong></td>
+        <td>${r.phone||'—'}</td>
+        <td>${r.job||'—'}</td>
+        <td>${r.date ? r.dayName + ' ' + r.date : '—'}</td>
+        <td>${[r.timeLibya?r.timeLibya+' ليبيا':'', r.timeEgypt?r.timeEgypt+' مصر':''].filter(Boolean).join(' / ')||'—'}</td>
+        <td><span class="badge ${r.interviewType==='online'?'badge-online':'badge-onsite'}">${r.interviewType==='online'?'🖥️ أونلاين':'🏢 حضوري'}</span></td>
+        <td>${r.jobSource||'—'}</td>
+        <td>${r.jobLink?`<a href="${r.jobLink}" target="_blank" style="color:var(--accent);font-size:0.8rem">🔗 رابط</a>`:'—'}</td>
+        <td style="color:var(--text-muted);font-size:0.78rem">${r.sentAt||'—'}</td>
+        <td>${hasPerm('canDeleteRecords') ? `<button class="del-rec-btn" onclick="window._deleteRecord('${r._docId}')">✕</button>` : ''}</td>
+      </tr>`).join('');
+  };
+
+  window._deleteRecord = async function(docId) {
+    if (!hasPerm('canDeleteRecords')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    try {
+      await deleteDoc(doc(db, 'interviews', docId));
+      records = records.filter(r => r._docId !== docId);
+      renderRecords();
+      showToast('🗑️ تم حذف السجل');
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); }
+  };
+
+  window.clearAllRecords = async function() {
+    if (!hasPerm('canDeleteRecords')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    if (!confirm('مسح كل السجلات؟')) return;
+    try {
+      const snap = await getDocs(collection(db, 'interviews'));
+      await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'interviews', d.id))));
+      records = []; renderRecords();
+      showToast('🗑️ تم مسح كل السجلات');
+    } catch(e) { showToast('⚠️ خطأ في المسح'); }
+  };
+
+  window.exportExcel = function() {
+    if (!hasPerm('canExportExcel')) { showToast('⚠️ ليس لديك صلاحية'); return; }
+    if (!records.length) { showToast('⚠️ لا توجد سجلات للتصدير'); return; }
+    const headers = ['#','اسم المرشح','رقم التليفون','الوظيفة','اليوم','التاريخ','وقت ليبيا','وقت مصر','نوع المقابلة','موقع التوظيف','رابط الإعلان','تاريخ الإرسال','أرسل بواسطة'];
+    const rows = records.map((r,i) => [
+      records.length-i, r.name, r.phone, r.job, r.dayName, r.date,
+      r.timeLibya, r.timeEgypt,
+      r.interviewType==='online'?'أونلاين':'حضوري',
+      r.jobSource, r.jobLink, r.sentAt, r.sentByName||r.sentBy||''
+    ]);
+    let csv = '\uFEFF' + [headers,...rows].map(row=>row.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url;
+    a.download = `سجل_المقابلات_${new Date().toLocaleDateString('ar-EG').replace(/\//g,'-')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('📥 تم تصدير الملف!');
+  };
+
+  // ==================== ADMIN PANEL ====================
+  async function loadAdminPanel() {
+    const list = document.getElementById('adminUsersList');
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">⏳ جاري التحميل...</div>';
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const users = snap.docs.map(d => ({ ...d.data(), _uid: d.id }));
+      if (!users.length) { list.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px">لا يوجد مستخدمون</p>'; return; }
+
+      list.innerHTML = users.map(u => {
+        const isSelf = u._uid === currentUser.uid;
+        const isSuperAdmin = u.email === SUPER_ADMIN_EMAIL;
+        const perms = u.permissions || {};
+        const permChecks = ALL_PERMS.map(p => `
+          <label class="perm-check">
+            <input type="checkbox" ${perms[p.key] ? 'checked' : ''} 
+              ${isSuperAdmin ? 'disabled' : ''}
+              onchange="updateUserPerm('${u._uid}', '${p.key}', this.checked)">
+            ${p.label}
+          </label>`).join('');
+
+        return `
+          <div class="admin-user-card">
+            <div class="admin-user-top">
+              ${u.photo ? `<img src="${u.photo}" alt="">` : '<div style="width:36px;height:36px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center">👤</div>'}
+              <div style="flex:1">
+                <div class="admin-user-name">${u.name || u.email}</div>
+                <div class="admin-user-email">${u.email}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="role-badge ${u.role==='superadmin'?'role-super':u.role==='admin'?'role-admin':'role-user'}">
+                  ${u.role==='superadmin'?'سوبر أدمن':u.role==='admin'?'أدمن':u.approved?'مستخدم':'معلق'}
+                </span>
+                ${!isSuperAdmin && !isSelf ? `
+                  <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem" onclick="toggleApproval('${u._uid}', ${!u.approved})">
+                    ${u.approved ? '🚫 تعليق' : '✅ تفعيل'}
+                  </button>` : ''}
+              </div>
+            </div>
+            ${isSuperAdmin ? '<p style="color:var(--text-muted);font-size:0.8rem;margin-top:4px">✨ سوبر أدمن — صلاحيات كاملة دائماً</p>' :
+            `<div class="perms-grid">${permChecks}</div>`}
+          </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px">⚠️ خطأ في التحميل</p>';
+      console.error(e);
+    }
+  }
+
+  window.updateUserPerm = async function(uid, permKey, value) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) return;
+      const perms = snap.data().permissions || {};
+      perms[permKey] = value;
+      await updateDoc(userRef, { permissions: perms });
+      showToast('✅ تم تحديث الصلاحية');
+    } catch(e) { showToast('⚠️ خطأ في التحديث'); }
+  };
+
+  window.toggleApproval = async function(uid, approve) {
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        approved: approve,
+        role: approve ? 'user' : 'pending'
+      });
+      showToast(approve ? '✅ تم تفعيل المستخدم' : '🚫 تم تعليق المستخدم');
+      loadAdminPanel();
+    } catch(e) { showToast('⚠️ خطأ'); }
+  };
+
+  // ==================== NAVIGATION ====================
+  window.showPage = function(page, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (page === 'records') loadRecords();
+    if (page === 'admin') loadAdminPanel();
+  };
+
+  // ==================== MODAL ====================
+  window.closeModal = function(id) {
+    document.getElementById(id).classList.remove('open');
+  };
+
+  // ==================== TOAST ====================
+  window.showToast = function(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  };
+
+  // Expose needed globals
+  window.generateMessage = generateMessage;
+
+</script>
+</body>
+</html>
