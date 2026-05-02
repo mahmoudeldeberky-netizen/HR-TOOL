@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HR - نموذج رسائل المقابلات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #0d1117;
@@ -689,6 +690,11 @@
       <button class="btn btn-whatsapp-num" onclick="sendWhatsAppWithNumber()">📱 إرسال برقم</button>
       <button class="btn btn-whatsapp" onclick="sendWhatsAppGeneral()">💬 فتح واتساب</button>
     </div>
+    <div id="googleMeetBtnRow" class="btn-row" style="display:none">
+      <button class="btn" onclick="scheduleGoogleMeet()" style="background:linear-gradient(135deg,#4285F4,#0F9D58);color:white;flex:1;font-size:0.88rem">
+        📅 جدولة على Google Calendar
+      </button>
+    </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="clearForm()">🗑️ مسح الكل</button>
     </div>
@@ -778,8 +784,9 @@
     <button class="modal-close" onclick="closeModal('mapsPickerModal')">✕</button>
     <div class="modal-title">🗺️ اختر موقع المقابلة</div>
     <div class="maps-input-row">
-      <input type="text" id="mapsSearchInput" placeholder="ابحث عن الموقع أو الفر ع..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
+      <input type="text" id="mapsSearchInput" placeholder="ابحث عن الموقع أو الفرع..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
       <button class="btn btn-primary" onclick="searchMapsLocation()" style="flex:none;padding:10px 16px">🔍 بحث</button>
+      <button class="btn btn-secondary" onclick="openMapsInNewTab()" style="flex:none;padding:10px 12px;font-size:0.8rem" title="افتح في خرائط جوجل">🌐</button>
     </div>
     <iframe id="mapsFrame"
       src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2000!2d15.0893!3d32.3754!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDIyJzMxLjUiTiAxNcKwMDUnMjEuNSJF!5e0!3m2!1sar!2sly!4v1234567890"
@@ -845,14 +852,16 @@
 
   // Permission keys
   const ALL_PERMS = [
-    { key: 'canViewRecords',      label: '👁️ عرض السجلات' },
-    { key: 'canDeleteRecords',    label: '🗑️ حذف السجلات' },
-    { key: 'canExportExcel',      label: '📥 تصدير Excel' },
-    { key: 'canManageRecruiters', label: '👤 إدارة القائمين' },
-    { key: 'canManageJobs',       label: '💼 إدارة الوظايف' },
-    { key: 'canUseTemplates',     label: '📂 استخدام Templates' },
-    { key: 'canSaveLocations',    label: '📍 حفظ المواقع' },
-    { key: 'isAdmin',             label: '⚙️ أدمن (إدارة مستخدمين)' },
+    { key: 'canViewRecords',        label: '👁️ عرض السجلات (كل المستخدمين)' },
+    { key: 'canViewOwnRecords',     label: '👁️ عرض سجلاته الشخصية فقط' },
+    { key: 'canDeleteRecords',      label: '🗑️ حذف السجلات' },
+    { key: 'canExportExcel',        label: '📥 تصدير Excel' },
+    { key: 'canManageRecruiters',   label: '👤 إدارة القائمين' },
+    { key: 'canManageJobs',         label: '💼 إدارة الوظايف' },
+    { key: 'canUseTemplates',       label: '📂 استخدام Templates' },
+    { key: 'canShareTemplates',     label: '🌐 مشاركة Templates مع الكل' },
+    { key: 'canSaveLocations',      label: '📍 حفظ المواقع' },
+    { key: 'isAdmin',               label: '⚙️ أدمن (إدارة مستخدمين)' },
   ];
 
   // ==================== AUTH ====================
@@ -948,7 +957,7 @@
     badge.className = 'role-badge ' + (roleClass[currentUserData.role] || 'role-user');
 
     // Nav visibility
-    if (hasPerm('canViewRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
+    if (hasPerm('canViewRecords') || hasPerm('canViewOwnRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
     if (hasPerm('isAdmin') || currentUserData.role === 'superadmin') {
       document.getElementById('navAdmin').classList.remove('hidden-tab');
     }
@@ -984,6 +993,10 @@
       renderRecruiterSelect();
       renderJobSelect();
       renderSavedLocations();
+
+      // Load shared templates (available to all with canUseTemplates)
+      if (hasPerm('canUseTemplates')) await loadSharedTemplates();
+      renderTemplates();
     } catch(e) {
       console.error('loadUserData error', e);
     }
@@ -1115,9 +1128,83 @@
     msg += `دهانات المدينة مصراتة - https://almadinamisurata.com/`;
 
     document.getElementById('output').innerText = msg;
+
+    // Show/hide Google Meet calendar button
+    const meetRow = document.getElementById('googleMeetBtnRow');
+    const app = v('meetApp');
+    if (interviewType === 'online' && app === 'Google Meet' && name && job && v('datePicker')) {
+      meetRow.style.display = 'flex';
+    } else {
+      meetRow.style.display = 'none';
+    }
   };
 
   function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+
+  // ==================== GOOGLE MEET CALENDAR ====================
+  window.scheduleGoogleMeet = function() {
+    const name = v('name');
+    const job = v('job');
+    const recruiterName = v('recruiterName') || 'محمود الدبركي';
+    const recruiterTitle = v('recruiterTitle') || 'HR';
+    const datePicker = v('datePicker'); // YYYY-MM-DD
+    const timeRaw = document.getElementById('timeEgyptRaw').value || document.getElementById('timeLibyaRaw').value;
+
+    if (!name || !job) { showToast('⚠️ اكتب اسم المرشح والوظيفة'); return; }
+    if (!datePicker) { showToast('⚠️ اختر التاريخ'); return; }
+
+    // Build event title: "محمود صلاح أمين - محاسب"
+    const eventTitle = encodeURIComponent(`${name} - ${job}`);
+
+    // Build description
+    const desc = encodeURIComponent(
+      `مقابلة عمل عبر Google Meet\n` +
+      `المرشح: ${name}\n` +
+      `الوظيفة: ${job}\n` +
+      `القائم بالمقابلة: ${recruiterName} - ${recruiterTitle}\n` +
+      `شركة المدينة مصراتة القابضة`
+    );
+
+    // Build start/end datetime in UTC format for Google Calendar
+    let startDT, endDT;
+    if (timeRaw) {
+      const [hh, mm] = timeRaw.split(':').map(Number);
+      // Format: YYYYMMDDTHHMMSS (local time, no Z = Google uses calendar's timezone)
+      const dateStr = datePicker.replace(/-/g, '');
+      const startH = String(hh).padStart(2,'0');
+      const startM = String(mm).padStart(2,'0');
+      // End = start + 1 hour
+      const endH = String((hh + 1) % 24).padStart(2,'0');
+      startDT = `${dateStr}T${startH}${startM}00`;
+      endDT   = `${dateStr}T${endH}${startM}00`;
+    } else {
+      // All-day fallback
+      startDT = datePicker.replace(/-/g, '');
+      endDT   = datePicker.replace(/-/g, '');
+    }
+
+    // Google Calendar link with Google Meet conference
+    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+      `&text=${eventTitle}` +
+      `&details=${desc}` +
+      `&dates=${startDT}/${endDT}` +
+      `&add=${encodeURIComponent(currentUser.email)}` +
+      `&crm=AVAILABLE` +
+      `&sprop=&sprop=name:` +
+      `&sf=true` +
+      `&output=xml`;
+
+    // Better: use the newer event creation URL that enables Meet
+    const meetUrl = `https://calendar.google.com/calendar/r/eventedit?` +
+      `text=${eventTitle}` +
+      `&details=${desc}` +
+      `&dates=${startDT}/${endDT}` +
+      `&add=${encodeURIComponent(currentUser.email)}` +
+      `&crm=AVAILABLE`;
+
+    window.open(meetUrl, '_blank');
+    showToast('📅 تم فتح Google Calendar — فعّل Google Meet من الحدث!');
+  };
 
   // ==================== WHATSAPP ====================
   window.sendWhatsAppWithNumber = async function() {
@@ -1156,50 +1243,103 @@
   };
 
   // ==================== TEMPLATES ====================
+  let sharedTemplates = []; // templates shared by others
+
   window.saveTemplate = async function() {
     if (!hasPerm('canUseTemplates')) { showToast('⚠️ ليس لديك صلاحية'); return; }
     const name = prompt('اسم الـ template:');
     if (!name) return;
+    const isShared = hasPerm('canShareTemplates') &&
+      confirm('هل تريد مشاركة هذا الـ template مع جميع المستخدمين؟\n(اختر "إلغاء" لحفظه لنفسك فقط)');
     const state = getFormState();
     state._name = name;
+    state._shared = isShared;
+    state._ownerName = currentUser.displayName || currentUser.email;
+    state._ownerEmail = currentUser.email;
     try {
-      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'templates'), state);
-      state._id = ref.id;
-      templates.push(state);
+      if (isShared) {
+        // Save to global shared templates collection
+        const ref = await addDoc(collection(db, 'sharedTemplates'), state);
+        state._id = ref.id;
+        sharedTemplates.push(state);
+      } else {
+        const ref = await addDoc(collection(db, 'users', currentUser.uid, 'templates'), state);
+        state._id = ref.id;
+        templates.push(state);
+      }
       renderTemplates();
-      showToast('💾 تم حفظ الـ template!');
+      showToast(isShared ? '🌐 تم حفظ ومشاركة الـ template مع الكل!' : '💾 تم حفظ الـ template!');
     } catch(e) { showToast('⚠️ خطأ في الحفظ'); }
   };
 
-  window.loadTemplate = function(idx) {
-    const t = templates[idx];
+  window.loadTemplate = function(idx, isShared) {
+    const t = isShared ? sharedTemplates[idx] : templates[idx];
     if (!t) return;
     setFormState(t);
     generateMessage();
     showToast('📂 تم تحميل الـ template!');
   };
 
-  window.deleteTemplate = async function(idx) {
+  window.deleteTemplate = async function(idx, isShared) {
     if (!confirm('مسح الـ template؟')) return;
-    const t = templates[idx];
-    try {
-      await deleteDoc(doc(db, 'users', currentUser.uid, 'templates', t._id));
-      templates.splice(idx, 1);
-      renderTemplates();
-    } catch(e) { showToast('⚠️ خطأ في المسح'); }
+    if (isShared) {
+      const t = sharedTemplates[idx];
+      // Only owner or superadmin can delete shared template
+      if (t._ownerEmail !== currentUser.email && currentUserData.role !== 'superadmin') {
+        showToast('⚠️ لا يمكنك حذف template شخص آخر');
+        return;
+      }
+      try {
+        await deleteDoc(doc(db, 'sharedTemplates', t._id));
+        sharedTemplates.splice(idx, 1);
+        renderTemplates();
+      } catch(e) { showToast('⚠️ خطأ في المسح'); }
+    } else {
+      const t = templates[idx];
+      try {
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'templates', t._id));
+        templates.splice(idx, 1);
+        renderTemplates();
+      } catch(e) { showToast('⚠️ خطأ في المسح'); }
+    }
   };
+
+  async function loadSharedTemplates() {
+    try {
+      const snap = await getDocs(collection(db, 'sharedTemplates'));
+      sharedTemplates = snap.docs.map(d => ({ ...d.data(), _id: d.id }));
+    } catch(e) { sharedTemplates = []; }
+  }
 
   function renderTemplates() {
     if (!hasPerm('canUseTemplates')) { document.getElementById('templatesBar').style.display = 'none'; return; }
     const bar = document.getElementById('templatesBar');
     bar.innerHTML = '<button class="tpl-btn save-btn" onclick="saveTemplate()">💾 حفظ كـ template</button>';
-    templates.forEach((t, i) => {
-      bar.innerHTML += `
-        <div style="display:inline-flex;align-items:center;gap:4px">
-          <button class="tpl-btn" onclick="loadTemplate(${i})">📂 ${t._name}</button>
-          <button class="tpl-btn delete-btn" onclick="deleteTemplate(${i})" style="padding:6px 8px">✕</button>
-        </div>`;
-    });
+
+    // My templates
+    if (templates.length) {
+      bar.innerHTML += `<span style="font-size:0.72rem;color:var(--text-muted);align-self:center">▸ خاصة:</span>`;
+      templates.forEach((t, i) => {
+        bar.innerHTML += `
+          <div style="display:inline-flex;align-items:center;gap:4px">
+            <button class="tpl-btn" onclick="loadTemplate(${i}, false)">📂 ${t._name}</button>
+            <button class="tpl-btn delete-btn" onclick="deleteTemplate(${i}, false)" style="padding:6px 8px">✕</button>
+          </div>`;
+      });
+    }
+
+    // Shared templates
+    if (sharedTemplates.length) {
+      bar.innerHTML += `<span style="font-size:0.72rem;color:var(--accent);align-self:center">▸ مشتركة:</span>`;
+      sharedTemplates.forEach((t, i) => {
+        const canDel = t._ownerEmail === currentUser.email || currentUserData.role === 'superadmin';
+        bar.innerHTML += `
+          <div style="display:inline-flex;align-items:center;gap:4px">
+            <button class="tpl-btn" onclick="loadTemplate(${i}, true)" style="border-color:rgba(0,200,150,0.3);color:var(--accent)">🌐 ${t._name}</button>
+            ${canDel ? `<button class="tpl-btn delete-btn" onclick="deleteTemplate(${i}, true)" style="padding:6px 8px">✕</button>` : ''}
+          </div>`;
+      });
+    }
   }
 
   function getFormState() {
@@ -1428,8 +1568,23 @@
     const q = document.getElementById('mapsSearchInput').value.trim();
     if (!q) return;
     const encoded = encodeURIComponent(q);
+    // Open Google Maps search in a new tab so user can copy the exact link
+    // Also update the iframe to show the search results
+    const apiKey = 'AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk';
     document.getElementById('mapsFrame').src =
-      `https://www.google.com/maps/embed/v1/search?key=AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk&q=${encoded}&language=ar`;
+      `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encoded}&language=ar&region=LY`;
+
+    // Build a direct Google Maps URL for this search and prefill the link input
+    const mapsUrl = `https://www.google.com/maps/search/${encoded}`;
+    document.getElementById('mapsLinkInput').value = mapsUrl;
+    showToast('🔍 تم البحث — اختر المكان من الخريطة أو افتح خرائط جوجل لنسخ الرابط الدقيق');
+  };
+
+  window.openMapsInNewTab = function() {
+    const q = document.getElementById('mapsSearchInput').value.trim();
+    if (!q) { showToast('⚠️ اكتب اسم الموقع أولاً'); return; }
+    window.open(`https://www.google.com/maps/search/${encodeURIComponent(q)}`, '_blank');
+    showToast('📍 افتح خرائط جوجل، اضغط على المكان واختر "مشاركة" لنسخ الرابط');
   };
 
   window.confirmMapLocation = function() {
@@ -1465,11 +1620,18 @@
 
   // ==================== RECORDS ====================
   async function loadRecords() {
-    if (!hasPerm('canViewRecords')) return;
+    const canViewAll = hasPerm('canViewRecords');
+    const canViewOwn = hasPerm('canViewOwnRecords');
+    if (!canViewAll && !canViewOwn) return;
     try {
       const q = query(collection(db, 'interviews'), orderBy('timestamp', 'desc'));
       const snap = await getDocs(q);
-      records = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+      let all = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+      // If only own records perm → filter
+      if (!canViewAll && canViewOwn) {
+        all = all.filter(r => r.sentBy === currentUser.email);
+      }
+      records = all;
       renderRecords();
     } catch(e) { console.error('loadRecords', e); }
   }
@@ -1494,7 +1656,7 @@
   }
 
   window.renderRecords = function() {
-    if (!hasPerm('canViewRecords')) return;
+    if (!hasPerm('canViewRecords') && !hasPerm('canViewOwnRecords')) return;
     const q = document.getElementById('searchRecords')?.value?.toLowerCase() || '';
     const filtered = records.filter(r =>
       (r.name||'').toLowerCase().includes(q) ||
@@ -1545,20 +1707,38 @@
   window.exportExcel = function() {
     if (!hasPerm('canExportExcel')) { showToast('⚠️ ليس لديك صلاحية'); return; }
     if (!records.length) { showToast('⚠️ لا توجد سجلات للتصدير'); return; }
+
+    // Build data array
     const headers = ['#','اسم المرشح','رقم التليفون','الوظيفة','اليوم','التاريخ','وقت ليبيا','وقت مصر','نوع المقابلة','موقع التوظيف','رابط الإعلان','تاريخ الإرسال','أرسل بواسطة'];
     const rows = records.map((r,i) => [
-      records.length-i, r.name, r.phone, r.job, r.dayName, r.date,
-      r.timeLibya, r.timeEgypt,
+      records.length-i, r.name||'', r.phone||'', r.job||'', r.dayName||'', r.date||'',
+      r.timeLibya||'', r.timeEgypt||'',
       r.interviewType==='online'?'أونلاين':'حضوري',
-      r.jobSource, r.jobLink, r.sentAt, r.sentByName||r.sentBy||''
+      r.jobSource||'', r.jobLink||'', r.sentAt||'', r.sentByName||r.sentBy||''
     ]);
-    let csv = '\uFEFF' + [headers,...rows].map(row=>row.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url;
-    a.download = `سجل_المقابلات_${new Date().toLocaleDateString('ar-EG').replace(/\//g,'-')}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-    showToast('📥 تم تصدير الملف!');
+
+    // Use SheetJS
+    const XLSX = window.XLSX;
+    if (!XLSX) { showToast('⚠️ جاري تحميل مكتبة Excel...'); return; }
+
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = [
+      {wch:5},{wch:20},{wch:16},{wch:20},{wch:12},{wch:18},
+      {wch:14},{wch:14},{wch:12},{wch:16},{wch:30},{wch:20},{wch:22}
+    ];
+
+    // RTL direction
+    ws['!dir'] = 'rtl';
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'سجل المقابلات');
+
+    const fileName = `سجل_المقابلات_${new Date().toLocaleDateString('ar-EG').replace(/\//g,'-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast('📥 تم تصدير ملف Excel!');
   };
 
   // ==================== ADMIN PANEL ====================
@@ -1662,5 +1842,3 @@
 </script>
 </body>
 </html>
-
-  
