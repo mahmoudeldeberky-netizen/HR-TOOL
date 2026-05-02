@@ -783,23 +783,30 @@
   <div class="modal" style="max-width:620px">
     <button class="modal-close" onclick="closeModal('mapsPickerModal')">✕</button>
     <div class="modal-title">🗺️ اختر موقع المقابلة</div>
+
+    <!-- Search row -->
     <div class="maps-input-row">
-      <input type="text" id="mapsSearchInput" placeholder="ابحث عن الموقع أو الفرع..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
+      <input type="text" id="mapsSearchInput" placeholder="مثال: المدينة مصراتة، شارع طرابلس..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
       <button class="btn btn-primary" onclick="searchMapsLocation()" style="flex:none;padding:10px 16px">🔍 بحث</button>
-      <button class="btn btn-secondary" onclick="openMapsInNewTab()" style="flex:none;padding:10px 12px;font-size:0.8rem" title="افتح في خرائط جوجل">🌐</button>
     </div>
-    <iframe id="mapsFrame"
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2000!2d15.0893!3d32.3754!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDIyJzMxLjUiTiAxNcKwMDUnMjEuNSJF!5e0!3m2!1sar!2sly!4v1234567890"
-      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-      style="width:100%;height:320px;border:1px solid var(--border);border-radius:8px">
-    </iframe>
-    <div style="margin-top:12px">
-      <label style="text-transform:none;font-size:0.85rem;margin-bottom:6px;color:var(--text)">الصق رابط Google Maps مباشرةً:</label>
-      <div class="maps-input-row" style="margin-bottom:0">
-        <input type="text" id="mapsLinkInput" placeholder="https://maps.app.goo.gl/... أو https://www.google.com/maps/...">
-        <button class="btn btn-primary" onclick="confirmMapLocation()" style="flex:none;padding:10px 14px;white-space:nowrap">✅ تأكيد</button>
-      </div>
+
+    <!-- Search results list -->
+    <div id="mapsResultsList" style="display:none;margin-bottom:12px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface2)"></div>
+
+    <!-- Selected location preview -->
+    <div id="mapsSelectedPreview" style="display:none;margin-bottom:12px;padding:10px 14px;background:rgba(0,200,150,0.08);border:1px solid var(--accent);border-radius:8px;font-size:0.88rem">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:4px">📍 <span id="mapsSelectedName"></span></div>
+      <div style="color:var(--text-muted);font-size:0.78rem;word-break:break-all" id="mapsSelectedUrl"></div>
     </div>
+
+    <hr class="divider">
+
+    <!-- OR paste manually -->
+    <label style="text-transform:none;font-size:0.82rem;margin-bottom:6px;display:block;color:var(--text-muted)">أو الصق رابط Google Maps مباشرةً:</label>
+    <div class="maps-input-row" style="margin-bottom:0">
+      <input type="text" id="mapsLinkInput" placeholder="https://maps.app.goo.gl/... أو https://www.google.com/maps/...">
+    </div>
+
     <div style="margin-top:10px">
       <label style="text-transform:none;font-size:0.82rem;color:var(--text-muted)">اسم الموقع (للحفظ في القائمة)</label>
       <input type="text" id="mapsLocationName" placeholder="مثال: مقر الشركة الرئيسي، فرع مصراتة...">
@@ -1143,67 +1150,63 @@
 
   // ==================== GOOGLE MEET CALENDAR ====================
   window.scheduleGoogleMeet = function() {
-    const name = v('name');
-    const job = v('job');
-    const recruiterName = v('recruiterName') || 'محمود الدبركي';
+    const name     = v('name');
+    const job      = v('job');
+    const recruiterName  = v('recruiterName') || 'محمود الدبركي';
     const recruiterTitle = v('recruiterTitle') || 'HR';
-    const datePicker = v('datePicker'); // YYYY-MM-DD
-    const timeRaw = document.getElementById('timeEgyptRaw').value || document.getElementById('timeLibyaRaw').value;
+    const datePicker = v('datePicker');   // YYYY-MM-DD
+    const timeLibyaRaw = document.getElementById('timeLibyaRaw').value;  // HH:MM
+    const timeEgyptRaw = document.getElementById('timeEgyptRaw').value;
 
-    if (!name || !job) { showToast('⚠️ اكتب اسم المرشح والوظيفة'); return; }
-    if (!datePicker) { showToast('⚠️ اختر التاريخ'); return; }
+    if (!name || !job)       { showToast('⚠️ اكتب اسم المرشح والوظيفة'); return; }
+    if (!datePicker)         { showToast('⚠️ اختر التاريخ'); return; }
+    if (!timeLibyaRaw && !timeEgyptRaw) { showToast('⚠️ اختر الوقت'); return; }
 
-    // Build event title: "محمود صلاح أمين - محاسب"
-    const eventTitle = encodeURIComponent(`${name} - ${job}`);
+    // Use Libya time preferably, else Egypt time
+    const timeRaw = timeLibyaRaw || timeEgyptRaw;
+    const [hh, mm] = timeRaw.split(':').map(Number);
 
-    // Build description
-    const desc = encodeURIComponent(
-      `مقابلة عمل عبر Google Meet\n` +
-      `المرشح: ${name}\n` +
-      `الوظيفة: ${job}\n` +
-      `القائم بالمقابلة: ${recruiterName} - ${recruiterTitle}\n` +
-      `شركة المدينة مصراتة القابضة`
-    );
+    // Build UTC datetime strings: YYYYMMDDTHHMMSSZ
+    // We'll use local time without Z so Google Calendar respects the user's calendar timezone
+    const dateStr = datePicker.replace(/-/g, '');          // 20250515
+    const hStr  = String(hh).padStart(2,'0');
+    const mStr  = String(mm).padStart(2,'0');
+    const endHh = (hh + 1) % 24;
+    const endHStr = String(endHh).padStart(2,'0');
 
-    // Build start/end datetime in UTC format for Google Calendar
-    let startDT, endDT;
-    if (timeRaw) {
-      const [hh, mm] = timeRaw.split(':').map(Number);
-      // Format: YYYYMMDDTHHMMSS (local time, no Z = Google uses calendar's timezone)
-      const dateStr = datePicker.replace(/-/g, '');
-      const startH = String(hh).padStart(2,'0');
-      const startM = String(mm).padStart(2,'0');
-      // End = start + 1 hour
-      const endH = String((hh + 1) % 24).padStart(2,'0');
-      startDT = `${dateStr}T${startH}${startM}00`;
-      endDT   = `${dateStr}T${endH}${startM}00`;
-    } else {
-      // All-day fallback
-      startDT = datePicker.replace(/-/g, '');
-      endDT   = datePicker.replace(/-/g, '');
-    }
+    const startDT = `${dateStr}T${hStr}${mStr}00`;
+    const endDT   = `${dateStr}T${endHStr}${mStr}00`;
 
-    // Google Calendar link with Google Meet conference
-    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-      `&text=${eventTitle}` +
-      `&details=${desc}` +
-      `&dates=${startDT}/${endDT}` +
-      `&add=${encodeURIComponent(currentUser.email)}` +
-      `&crm=AVAILABLE` +
-      `&sprop=&sprop=name:` +
-      `&sf=true` +
-      `&output=xml`;
+    // Event title: "اسم المرشح - الوظيفة"
+    const title = `${name} - ${job}`;
 
-    // Better: use the newer event creation URL that enables Meet
-    const meetUrl = `https://calendar.google.com/calendar/r/eventedit?` +
-      `text=${eventTitle}` +
-      `&details=${desc}` +
-      `&dates=${startDT}/${endDT}` +
-      `&add=${encodeURIComponent(currentUser.email)}` +
-      `&crm=AVAILABLE`;
+    // Description with all details
+    const timeLabel = timeLibyaRaw
+      ? `${hh%12||12}:${mStr} ${hh>=12?'مساءً':'صباحاً'} بتوقيت ليبيا`
+      : `${hh%12||12}:${mStr} ${hh>=12?'مساءً':'صباحاً'} بتوقيت مصر`;
 
-    window.open(meetUrl, '_blank');
-    showToast('📅 تم فتح Google Calendar — فعّل Google Meet من الحدث!');
+    const desc = [
+      `مقابلة عمل عبر Google Meet`,
+      `المرشح: ${name}`,
+      `الوظيفة: ${job}`,
+      `الوقت: ${timeLabel}`,
+      `القائم بالمقابلة: ${recruiterName} - ${recruiterTitle}`,
+      `شركة المدينة مصراتة القابضة`,
+    ].join('\n');
+
+    // Google Calendar "r/eventedit" URL — this correctly pre-fills all fields
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text:   title,
+      dates:  `${startDT}/${endDT}`,
+      details: desc,
+      location: 'Google Meet',
+      crm: 'AVAILABLE',
+    });
+
+    const calUrl = `https://calendar.google.com/calendar/render?${params.toString()}`;
+    window.open(calUrl, '_blank');
+    showToast('📅 فُتح Google Calendar — راجع البيانات وفعّل Google Meet من الحدث!');
   };
 
   // ==================== WHATSAPP ====================
@@ -1561,30 +1564,73 @@
   window.openMapsPicker = function() {
     document.getElementById('mapsLinkInput').value = v('locationLink');
     document.getElementById('mapsLocationName').value = '';
+    document.getElementById('mapsSearchInput').value = '';
+    document.getElementById('mapsResultsList').style.display = 'none';
+    document.getElementById('mapsResultsList').innerHTML = '';
+    document.getElementById('mapsSelectedPreview').style.display = 'none';
     document.getElementById('mapsPickerModal').classList.add('open');
   };
 
-  window.searchMapsLocation = function() {
+  window.searchMapsLocation = async function() {
     const q = document.getElementById('mapsSearchInput').value.trim();
     if (!q) return;
-    const encoded = encodeURIComponent(q);
-    // Open Google Maps search in a new tab so user can copy the exact link
-    // Also update the iframe to show the search results
-    const apiKey = 'AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk';
-    document.getElementById('mapsFrame').src =
-      `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encoded}&language=ar&region=LY`;
 
-    // Build a direct Google Maps URL for this search and prefill the link input
-    const mapsUrl = `https://www.google.com/maps/search/${encoded}`;
-    document.getElementById('mapsLinkInput').value = mapsUrl;
-    showToast('🔍 تم البحث — اختر المكان من الخريطة أو افتح خرائط جوجل لنسخ الرابط الدقيق');
+    const resultsList = document.getElementById('mapsResultsList');
+    resultsList.style.display = 'block';
+    resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted)">⏳ جاري البحث...</div>';
+
+    try {
+      // Nominatim: free, no API key needed
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&accept-language=ar`,
+        { headers: { 'Accept-Language': 'ar' } }
+      );
+      const data = await res.json();
+
+      if (!data.length) {
+        resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted)">🔍 لا توجد نتائج، جرب كلمات أخرى</div>';
+        return;
+      }
+
+      resultsList.innerHTML = data.map((place, i) => {
+        const lat = parseFloat(place.lat).toFixed(6);
+        const lon = parseFloat(place.lon).toFixed(6);
+        const gmUrl = `https://www.google.com/maps?q=${lat},${lon}`;
+        const name = place.display_name;
+        const shortName = name.split(',').slice(0,3).join('،');
+        return `
+          <div onclick="selectMapsResult('${lat}','${lon}','${shortName.replace(/'/g,"\\'")}','${gmUrl.replace(/'/g,"\\'")}')"
+            style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s"
+            onmouseover="this.style.background='rgba(0,200,150,0.07)'"
+            onmouseout="this.style.background=''">
+            <div style="font-weight:700;font-size:0.88rem;margin-bottom:2px">📍 ${shortName}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${name}</div>
+          </div>`;
+      }).join('');
+    } catch(e) {
+      resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--danger)">⚠️ خطأ في البحث، تحقق من الإنترنت</div>';
+    }
+  };
+
+  window.selectMapsResult = function(lat, lon, name, gmUrl) {
+    // Fill link input with exact Google Maps link
+    document.getElementById('mapsLinkInput').value = gmUrl;
+    document.getElementById('mapsLocationName').value = name;
+
+    // Show preview
+    document.getElementById('mapsSelectedPreview').style.display = 'block';
+    document.getElementById('mapsSelectedName').textContent = name;
+    document.getElementById('mapsSelectedUrl').textContent = gmUrl;
+
+    // Hide results
+    document.getElementById('mapsResultsList').style.display = 'none';
+    showToast('📍 تم اختيار الموقع — اضغط تأكيد أو حفظ');
   };
 
   window.openMapsInNewTab = function() {
     const q = document.getElementById('mapsSearchInput').value.trim();
     if (!q) { showToast('⚠️ اكتب اسم الموقع أولاً'); return; }
     window.open(`https://www.google.com/maps/search/${encodeURIComponent(q)}`, '_blank');
-    showToast('📍 افتح خرائط جوجل، اضغط على المكان واختر "مشاركة" لنسخ الرابط');
   };
 
   window.confirmMapLocation = function() {
