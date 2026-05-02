@@ -744,6 +744,11 @@
       <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">
         كل مستخدم سجّل بجوجل يظهر هنا. حدّد صلاحياته بالتعليم على المربعات ثم اضغط حفظ.
       </p>
+      <div style="margin-bottom:12px">
+        <button class="btn btn-secondary" onclick="removeDuplicateUsers()" style="font-size:0.82rem;border-color:var(--warning);color:var(--warning)">
+          🧹 حذف التكرارات (نفس الإيميل)
+        </button>
+      </div>
       <div id="adminUsersList">
         <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ جاري التحميل...</div>
       </div>
@@ -1878,6 +1883,41 @@
       showToast(approve ? '✅ تم تفعيل المستخدم' : '🚫 تم تعليق المستخدم');
       loadAdminPanel();
     } catch(e) { showToast('⚠️ خطأ'); }
+  };
+
+  window.removeDuplicateUsers = async function() {
+    if (!confirm('هيشوف لو في إيميلات متكررة ويمسح الزيادة — يكمل؟')) return;
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const users = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+
+      // Group by email
+      const byEmail = {};
+      users.forEach(u => {
+        const email = (u.email || '').toLowerCase();
+        if (!byEmail[email]) byEmail[email] = [];
+        byEmail[email].push(u);
+      });
+
+      let deleted = 0;
+      for (const email in byEmail) {
+        const group = byEmail[email];
+        if (group.length <= 1) continue;
+
+        // Keep the one whose _docId matches currentUser.uid if exists, else keep first
+        const keepIdx = group.findIndex(u => u._docId === currentUser.uid);
+        const keepDoc = group[keepIdx >= 0 ? keepIdx : 0];
+
+        for (const u of group) {
+          if (u._docId === keepDoc._docId) continue;
+          await deleteDoc(doc(db, 'users', u._docId));
+          deleted++;
+        }
+      }
+
+      showToast(deleted > 0 ? `🧹 تم حذف ${deleted} تكرار` : '✅ لا توجد تكرارات');
+      loadAdminPanel();
+    } catch(e) { showToast('⚠️ خطأ'); console.error(e); }
   };
 
   window.deleteUser = async function(uid, name) {
