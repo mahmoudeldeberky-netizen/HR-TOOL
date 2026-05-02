@@ -841,7 +841,7 @@
   let records = [];
 
   // Super admin email — change this to yours
-  const SUPER_ADMIN_EMAIL = "Mahmoudeldeberky@gmail.com";
+  const SUPER_ADMIN_EMAIL = "mahmoudeldeberky@gmail.com";
 
   // Permission keys
   const ALL_PERMS = [
@@ -882,7 +882,7 @@
 
     if (!snap.exists()) {
       // New user — create pending profile
-      const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+      const isSuperAdmin = user.email.toLowerCase() === SUPER_ADMIN_EMAIL;
       const newProfile = {
         uid: user.uid,
         email: user.email,
@@ -898,7 +898,7 @@
     } else {
       currentUserData = snap.data();
       // Superadmin always approved
-      if (user.email === SUPER_ADMIN_EMAIL && !currentUserData.approved) {
+      if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL && !currentUserData.approved) {
         await updateDoc(userRef, { approved: true, role: 'superadmin', permissions: getAllPerms(true) });
         currentUserData.approved = true;
         currentUserData.role = 'superadmin';
@@ -1572,7 +1572,7 @@
 
       list.innerHTML = users.map(u => {
         const isSelf = u._uid === currentUser.uid;
-        const isSuperAdmin = u.email === SUPER_ADMIN_EMAIL;
+        const isSuperAdmin = u.email.toLowerCase() === SUPER_ADMIN_EMAIL;
         const perms = u.permissions || {};
         const permChecks = ALL_PERMS.map(p => `
           <label class="perm-check">
@@ -1662,3 +1662,5 @@
 </script>
 </body>
 </html>
+
+  
