@@ -1841,6 +1841,9 @@
                 ${!isSuperAdmin && !isSelf ? `
                   <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem" onclick="toggleApproval('${u._uid}', ${!u.approved})">
                     ${u.approved ? '🚫 تعليق' : '✅ تفعيل'}
+                  </button>
+                  <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem;border-color:var(--danger);color:var(--danger)" onclick="deleteUser('${u._uid}', '${(u.name||u.email).replace(/'/g,"\\'")}')">
+                    🗑️
                   </button>` : ''}
               </div>
             </div>
@@ -1875,6 +1878,22 @@
       showToast(approve ? '✅ تم تفعيل المستخدم' : '🚫 تم تعليق المستخدم');
       loadAdminPanel();
     } catch(e) { showToast('⚠️ خطأ'); }
+  };
+
+  window.deleteUser = async function(uid, name) {
+    if (!confirm(`حذف "${name}" نهائياً من قاعدة البيانات؟\n(لن يُحذف من Firebase Auth، لكن لن يظهر هنا مجدداً إلا لو سجّل دخول من جديد)`)) return;
+    try {
+      // Delete all user subcollections first
+      const subcols = ['templates', 'recruiters', 'jobs', 'locations'];
+      for (const col of subcols) {
+        const snap = await getDocs(collection(db, 'users', uid, col));
+        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'users', uid, col, d.id))));
+      }
+      // Delete user document
+      await deleteDoc(doc(db, 'users', uid));
+      showToast('🗑️ تم حذف المستخدم');
+      loadAdminPanel();
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); console.error(e); }
   };
 
   // ==================== NAVIGATION ====================
