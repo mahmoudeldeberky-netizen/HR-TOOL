@@ -690,10 +690,13 @@
       <button class="btn btn-whatsapp-num" onclick="sendWhatsAppWithNumber()">📱 إرسال برقم</button>
       <button class="btn btn-whatsapp" onclick="sendWhatsAppGeneral()">💬 فتح واتساب</button>
     </div>
-    <div id="googleMeetBtnRow" class="btn-row" style="display:none">
+    <div id="googleMeetBtnRow" class="btn-row" style="display:none;flex-direction:column;gap:6px">
       <button class="btn" onclick="scheduleGoogleMeet()" style="background:linear-gradient(135deg,#4285F4,#0F9D58);color:white;flex:1;font-size:0.88rem">
         📅 جدولة على Google Calendar
       </button>
+      <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;padding:2px 0">
+        💡 بعد ما بيفتح Calendar — اضغط <strong style="color:var(--accent)">"Add video conferencing"</strong> لإضافة Google Meet
+      </div>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="clearForm()">🗑️ مسح الكل</button>
@@ -1166,16 +1169,25 @@
     const timeRaw = timeLibyaRaw || timeEgyptRaw;
     const [hh, mm] = timeRaw.split(':').map(Number);
 
-    // Build UTC datetime strings: YYYYMMDDTHHMMSSZ
-    // We'll use local time without Z so Google Calendar respects the user's calendar timezone
-    const dateStr = datePicker.replace(/-/g, '');          // 20250515
+    // Duration in minutes
+    const durationNum = parseInt(document.getElementById('durationNum').value) || 60;
+    const durationUnit = document.getElementById('durationUnit').value;
+    const durationMins = durationUnit === 'ساعة' ? durationNum * 60 : durationNum;
+
+    const dateStr = datePicker.replace(/-/g, '');
     const hStr  = String(hh).padStart(2,'0');
     const mStr  = String(mm).padStart(2,'0');
-    const endHh = (hh + 1) % 24;
+
+    // End = start + duration
+    const totalStartMins = hh * 60 + mm;
+    const totalEndMins   = totalStartMins + durationMins;
+    const endHh  = Math.floor(totalEndMins / 60) % 24;
+    const endMm  = totalEndMins % 60;
     const endHStr = String(endHh).padStart(2,'0');
+    const endMStr = String(endMm).padStart(2,'0');
 
     const startDT = `${dateStr}T${hStr}${mStr}00`;
-    const endDT   = `${dateStr}T${endHStr}${mStr}00`;
+    const endDT   = `${dateStr}T${endHStr}${endMStr}00`;
 
     // Event title: "اسم المرشح - الوظيفة"
     const title = `${name} - ${job}`;
@@ -1186,6 +1198,10 @@
       : `${hh%12||12}:${mStr} ${hh>=12?'مساءً':'صباحاً'} بتوقيت مصر`;
 
     const desc = [
+      `━━━━━━━━━━━━━━━━━━`,
+      `⚠️ مهم: اضغط على "Add video conferencing" لإضافة Google Meet`,
+      `━━━━━━━━━━━━━━━━━━`,
+      ``,
       `مقابلة عمل عبر Google Meet`,
       `المرشح: ${name}`,
       `الوظيفة: ${job}`,
@@ -1194,7 +1210,6 @@
       `شركة المدينة مصراتة القابضة`,
     ].join('\n');
 
-    // Google Calendar "r/eventedit" URL — this correctly pre-fills all fields
     const params = new URLSearchParams({
       action: 'TEMPLATE',
       text:   title,
@@ -1202,11 +1217,14 @@
       details: desc,
       location: 'Google Meet',
       crm: 'AVAILABLE',
+      trp: 'false',
     });
 
     const calUrl = `https://calendar.google.com/calendar/render?${params.toString()}`;
     window.open(calUrl, '_blank');
-    showToast('📅 فُتح Google Calendar — راجع البيانات وفعّل Google Meet من الحدث!');
+
+    // Show a reminder toast
+    showToast('📅 فُتح Calendar — اضغط "Add video conferencing" لإضافة Meet!');
   };
 
   // ==================== WHATSAPP ====================
