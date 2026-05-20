@@ -933,6 +933,7 @@
     { key: 'canManageJobs',       label: '💼 إدارة الوظايف' },
     { key: 'canUseTemplates',     label: '📂 استخدام Templates' },
     { key: 'canSaveLocations',    label: '📍 حفظ المواقع' },
+    { key: 'canEditMsgTemplate',  label: '✍️ تعديل نص الرسالة' },
     { key: 'isAdmin',             label: '⚙️ أدمن (إدارة مستخدمين)' },
   ];
 
@@ -1032,6 +1033,8 @@
     if (hasPerm('canViewRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
     if (hasPerm('isAdmin') || currentUserData.role === 'superadmin') {
       document.getElementById('navAdmin').classList.remove('hidden-tab');
+    }
+    if (hasPerm('canEditMsgTemplate') || currentUserData.role === 'superadmin') {
       document.getElementById('navMsgSettings').classList.remove('hidden-tab');
     }
 
@@ -1138,6 +1141,9 @@
   }
 
   window.saveMsgSettings = async function() {
+    if (!hasPerm('canEditMsgTemplate') && currentUserData.role !== 'superadmin') {
+      showToast('⚠️ ليس لديك صلاحية تعديل نص الرسالة'); return;
+    }
     const keys = Object.keys(MSG_DEFAULTS);
     const data = {};
     keys.forEach(key => {
@@ -1192,11 +1198,7 @@
   };
 
   // Hook to render settings page when tab is opened
-  const _origShowPage = window.showPage;
-  window.showPage = function(page, btn) {
-    _origShowPage(page, btn);
-    if (page === 'msgSettings') renderMsgSettingsPage();
-  };
+  // Hook: msgSettings page render is handled in the main showPage below
 
   // ==================== GENERATE MESSAGE ====================
   window.generateMessage = function() {
@@ -1793,6 +1795,7 @@
     if (btn) btn.classList.add('active');
     if (page === 'records') loadRecords();
     if (page === 'admin') loadAdminPanel();
+    if (page === 'msgSettings') renderMsgSettingsPage();
   };
 
   // ==================== MODAL ====================
