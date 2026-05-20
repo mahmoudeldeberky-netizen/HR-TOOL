@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HR - نموذج رسائل المقابلات</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #0d1117;
@@ -510,6 +509,7 @@
 <div class="nav-tabs" id="mainNav">
   <button class="nav-tab active" onclick="showPage('form', this)">✏️ نموذج الرسالة</button>
   <button class="nav-tab" onclick="showPage('records', this)" id="navRecords">📊 سجل المقابلات</button>
+  <button class="nav-tab hidden-tab" onclick="showPage('msgSettings', this)" id="navMsgSettings">✍️ نص الرسالة</button>
   <button class="nav-tab hidden-tab" onclick="showPage('admin', this)" id="navAdmin">⚙️ إدارة المستخدمين</button>
 </div>
 
@@ -690,14 +690,6 @@
       <button class="btn btn-whatsapp-num" onclick="sendWhatsAppWithNumber()">📱 إرسال برقم</button>
       <button class="btn btn-whatsapp" onclick="sendWhatsAppGeneral()">💬 فتح واتساب</button>
     </div>
-    <div id="googleMeetBtnRow" class="btn-row" style="display:none;flex-direction:column;gap:6px">
-      <button class="btn" onclick="scheduleGoogleMeet()" style="background:linear-gradient(135deg,#4285F4,#0F9D58);color:white;flex:1;font-size:0.88rem">
-        📅 جدولة على Google Calendar
-      </button>
-      <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;padding:2px 0">
-        💡 بعد ما بيفتح Calendar — اضغط <strong style="color:var(--accent)">"Add video conferencing"</strong> لإضافة Google Meet
-      </div>
-    </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="clearForm()">🗑️ مسح الكل</button>
     </div>
@@ -736,7 +728,27 @@
   </div>
 </div>
 
-<!-- PAGE 3: Admin -->
+<!-- PAGE 3: Message Settings -->
+<div class="page" id="page-msgSettings">
+  <div style="max-width:860px;margin:0 auto;">
+    <div class="card">
+      <div class="card-title"><span>✍️</span> تخصيص نص الرسالة</div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px">
+        عدّل أي جزء من الرسالة الثابتة واضغط 💾 حفظ — التغييرات تنطبق على الكل فوراً.
+        استخدم <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:0.8rem">{اسم}</code> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:0.8rem">{وظيفة}</code> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:0.8rem">{مسؤول}</code> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:0.8rem">{مسمى}</code> للمتغيرات.
+      </p>
+
+      <div id="msgSettingsFields" style="display:flex;flex-direction:column;gap:16px"></div>
+
+      <div class="btn-row" style="margin-top:24px">
+        <button class="btn btn-secondary" onclick="resetMsgSettings()">↩️ استعادة الإعدادات الافتراضية</button>
+        <button class="btn btn-primary" onclick="saveMsgSettings()">💾 حفظ التغييرات</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: Admin -->
 <div class="page" id="page-admin">
   <div style="max-width:1200px;margin:0 auto;">
     <div class="card">
@@ -744,11 +756,6 @@
       <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">
         كل مستخدم سجّل بجوجل يظهر هنا. حدّد صلاحياته بالتعليم على المربعات ثم اضغط حفظ.
       </p>
-      <div style="margin-bottom:12px">
-        <button class="btn btn-secondary" onclick="removeDuplicateUsers()" style="font-size:0.82rem;border-color:var(--warning);color:var(--warning)">
-          🧹 حذف التكرارات (نفس الإيميل)
-        </button>
-      </div>
       <div id="adminUsersList">
         <div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ جاري التحميل...</div>
       </div>
@@ -791,30 +798,22 @@
   <div class="modal" style="max-width:620px">
     <button class="modal-close" onclick="closeModal('mapsPickerModal')">✕</button>
     <div class="modal-title">🗺️ اختر موقع المقابلة</div>
-
-    <!-- Search row -->
     <div class="maps-input-row">
-      <input type="text" id="mapsSearchInput" placeholder="مثال: المدينة مصراتة، شارع طرابلس..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
+      <input type="text" id="mapsSearchInput" placeholder="ابحث عن الموقع أو الفر ع..." onkeydown="if(event.key==='Enter')searchMapsLocation()">
       <button class="btn btn-primary" onclick="searchMapsLocation()" style="flex:none;padding:10px 16px">🔍 بحث</button>
     </div>
-
-    <!-- Search results list -->
-    <div id="mapsResultsList" style="display:none;margin-bottom:12px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface2)"></div>
-
-    <!-- Selected location preview -->
-    <div id="mapsSelectedPreview" style="display:none;margin-bottom:12px;padding:10px 14px;background:rgba(0,200,150,0.08);border:1px solid var(--accent);border-radius:8px;font-size:0.88rem">
-      <div style="color:var(--accent);font-weight:700;margin-bottom:4px">📍 <span id="mapsSelectedName"></span></div>
-      <div style="color:var(--text-muted);font-size:0.78rem;word-break:break-all" id="mapsSelectedUrl"></div>
+    <iframe id="mapsFrame"
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2000!2d15.0893!3d32.3754!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzLCsDIyJzMxLjUiTiAxNcKwMDUnMjEuNSJF!5e0!3m2!1sar!2sly!4v1234567890"
+      allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      style="width:100%;height:320px;border:1px solid var(--border);border-radius:8px">
+    </iframe>
+    <div style="margin-top:12px">
+      <label style="text-transform:none;font-size:0.85rem;margin-bottom:6px;color:var(--text)">الصق رابط Google Maps مباشرةً:</label>
+      <div class="maps-input-row" style="margin-bottom:0">
+        <input type="text" id="mapsLinkInput" placeholder="https://maps.app.goo.gl/... أو https://www.google.com/maps/...">
+        <button class="btn btn-primary" onclick="confirmMapLocation()" style="flex:none;padding:10px 14px;white-space:nowrap">✅ تأكيد</button>
+      </div>
     </div>
-
-    <hr class="divider">
-
-    <!-- OR paste manually -->
-    <label style="text-transform:none;font-size:0.82rem;margin-bottom:6px;display:block;color:var(--text-muted)">أو الصق رابط Google Maps مباشرةً:</label>
-    <div class="maps-input-row" style="margin-bottom:0">
-      <input type="text" id="mapsLinkInput" placeholder="https://maps.app.goo.gl/... أو https://www.google.com/maps/...">
-    </div>
-
     <div style="margin-top:10px">
       <label style="text-transform:none;font-size:0.82rem;color:var(--text-muted)">اسم الموقع (للحفظ في القائمة)</label>
       <input type="text" id="mapsLocationName" placeholder="مثال: مقر الشركة الرئيسي، فرع مصراتة...">
@@ -861,22 +860,80 @@
   let jobs = [];
   let savedLocations = [];
   let records = [];
+  let msgSettings = {}; // loaded from Firestore global settings
+
+  // ── Default message parts (used as fallback) ──────────────────────────────
+  const MSG_DEFAULTS = {
+    greeting:          'السلام عليكم ورحمة الله',
+    welcome:           'اهلا بك استاذ : {اسم}',
+    intro:             'معك {مسؤول} {مسمى} من شركة المدينة مصراتة القابضة',
+    candidateWithSrc:  'انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك عبر موقع : ({مصدر})',
+    candidateNoSrc:    'انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك',
+    onlineType:        'ونرغب في تحديد موعد مقابلة (اونلاين) عبر تطبيق {تطبيق}',
+    offlineType:       'ونرغب في تحديد موعد مقابلة في مقر الشركة في مدينة مصراتة - ليبيا',
+    locationLabel:     'موقع مكان المقابلة : {رابط}',
+    jobLabel:          'الوظيفة: {وظيفة}',
+    scheduleHeader:    'تفاصيل الموعد:',
+    dayLabel:          'اليوم : {يوم}',
+    dateLabel:         'الموافق : {تاريخ}',
+    timeLabel:         'الساعة : {وقت_ليبيا} بتوقيت ليبيا – {وقت_مصر} بتوقيت مصر',
+    timeLabelLibyaOnly:'الساعة : {وقت_ليبيا} بتوقيت ليبيا',
+    timeLabelEgyptOnly:'الساعة : {وقت_مصر} بتوقيت مصر',
+    durationLabel:     'مدة المقابلة: {مدة}',
+    sourceLabel:       'مكان التوظيف: {مصدر}',
+    workType:          'نوع العمل : دوام كامل - صباحي',
+    interviewType:     'نوع المقابلة : مقابلة اولى مع لجنة التوظيف تشمل نقاط فنية وشخصية و ادارية',
+    confirmOnline:     'منتظر تأكيد الموعد لارسال رابط الدعوة والمقابلة',
+    confirmOffline:    'منتظر تأكيد الموعد',
+    disclaimerSalary:  'يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات - رينج الراتب - المزايا مع الراتب) والتأكد من توافقها معك لأنه في حالة اختيارك للتعين سوف يكون العرض الوظيفي في حدود ما هو مكتوب.',
+    disclaimerNoSalary:'يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات) والتأكد من توافقها معك.',
+    cameraNote:        'يرجى التأكد من فتح الكاميرا اثناء المقابلة وجودة الانترنت لضمان دقة التقييم.',
+    closing:           'مع التمنيات بالتوفيق ونتطلع للعمل معكم',
+    signature:         'دهانات المدينة مصراتة - https://almadinamisurata.com/',
+  };
+
+  const MSG_LABELS = {
+    greeting:          '1 ● التحية الافتتاحية',
+    welcome:           '2 ● ترحيب بالمرشح',
+    intro:             '3 ● التعريف بالمسؤول والشركة',
+    candidateWithSrc:  '4 ● جملة الترشيح (مع ذكر المصدر)',
+    candidateNoSrc:    '5 ● جملة الترشيح (بدون مصدر)',
+    onlineType:        '6 ● نوع المقابلة — أونلاين',
+    offlineType:       '7 ● نوع المقابلة — حضوري',
+    locationLabel:     '8 ● تسمية موقع المقابلة',
+    jobLabel:          '9 ● تسمية الوظيفة',
+    scheduleHeader:    '10 ● عنوان تفاصيل الموعد',
+    dayLabel:          '11 ● تسمية اليوم',
+    dateLabel:         '12 ● تسمية التاريخ',
+    timeLabel:         '13 ● الوقت (ليبيا + مصر)',
+    timeLabelLibyaOnly:'14 ● الوقت (ليبيا فقط)',
+    timeLabelEgyptOnly:'15 ● الوقت (مصر فقط)',
+    durationLabel:     '16 ● تسمية المدة',
+    sourceLabel:       '17 ● تسمية مكان التوظيف',
+    workType:          '18 ● نوع العمل',
+    interviewType:     '19 ● نوع المقابلة',
+    confirmOnline:     '20 ● انتظار تأكيد الموعد — أونلاين',
+    confirmOffline:    '21 ● انتظار تأكيد الموعد — حضوري',
+    disclaimerSalary:  '22 ● تنبيه الإعلان (مع راتب)',
+    disclaimerNoSalary:'23 ● تنبيه الإعلان (بدون راتب)',
+    cameraNote:        '24 ● ملاحظة الكاميرا (أونلاين)',
+    closing:           '25 ● جملة الختام',
+    signature:         '26 ● التوقيع',
+  };
 
   // Super admin email — change this to yours
   const SUPER_ADMIN_EMAIL = "mahmoudeldeberky@gmail.com";
 
   // Permission keys
   const ALL_PERMS = [
-    { key: 'canViewRecords',        label: '👁️ عرض السجلات (كل المستخدمين)' },
-    { key: 'canViewOwnRecords',     label: '👁️ عرض سجلاته الشخصية فقط' },
-    { key: 'canDeleteRecords',      label: '🗑️ حذف السجلات' },
-    { key: 'canExportExcel',        label: '📥 تصدير Excel' },
-    { key: 'canManageRecruiters',   label: '👤 إدارة القائمين' },
-    { key: 'canManageJobs',         label: '💼 إدارة الوظايف' },
-    { key: 'canUseTemplates',       label: '📂 استخدام Templates' },
-    { key: 'canShareTemplates',     label: '🌐 مشاركة Templates مع الكل' },
-    { key: 'canSaveLocations',      label: '📍 حفظ المواقع' },
-    { key: 'isAdmin',               label: '⚙️ أدمن (إدارة مستخدمين)' },
+    { key: 'canViewRecords',      label: '👁️ عرض السجلات' },
+    { key: 'canDeleteRecords',    label: '🗑️ حذف السجلات' },
+    { key: 'canExportExcel',      label: '📥 تصدير Excel' },
+    { key: 'canManageRecruiters', label: '👤 إدارة القائمين' },
+    { key: 'canManageJobs',       label: '💼 إدارة الوظايف' },
+    { key: 'canUseTemplates',     label: '📂 استخدام Templates' },
+    { key: 'canSaveLocations',    label: '📍 حفظ المواقع' },
+    { key: 'isAdmin',             label: '⚙️ أدمن (إدارة مستخدمين)' },
   ];
 
   // ==================== AUTH ====================
@@ -972,9 +1029,10 @@
     badge.className = 'role-badge ' + (roleClass[currentUserData.role] || 'role-user');
 
     // Nav visibility
-    if (hasPerm('canViewRecords') || hasPerm('canViewOwnRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
+    if (hasPerm('canViewRecords')) document.getElementById('navRecords').classList.remove('hidden-tab');
     if (hasPerm('isAdmin') || currentUserData.role === 'superadmin') {
       document.getElementById('navAdmin').classList.remove('hidden-tab');
+      document.getElementById('navMsgSettings').classList.remove('hidden-tab');
     }
 
     // Manage buttons visibility
@@ -982,7 +1040,7 @@
     if (!hasPerm('canManageJobs')) document.getElementById('btnManageJobs').style.display = 'none';
 
     // Load user data from Firestore
-    await Promise.all([loadUserData(), loadRecords()]);
+    await Promise.all([loadUserData(), loadRecords(), loadMsgSettings()]);
   }
 
   async function loadUserData() {
@@ -1008,10 +1066,6 @@
       renderRecruiterSelect();
       renderJobSelect();
       renderSavedLocations();
-
-      // Load shared templates (available to all with canUseTemplates)
-      if (hasPerm('canUseTemplates')) await loadSharedTemplates();
-      renderTemplates();
     } catch(e) {
       console.error('loadUserData error', e);
     }
@@ -1070,6 +1124,81 @@
   };
 
   // ==================== GENERATE ====================
+  // ==================== MESSAGE SETTINGS ====================
+  function ms(key) {
+    // Return saved setting or default
+    return (msgSettings[key] !== undefined ? msgSettings[key] : MSG_DEFAULTS[key]) || '';
+  }
+
+  async function loadMsgSettings() {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'messageTemplate'));
+      if (snap.exists()) msgSettings = snap.data();
+    } catch(e) { msgSettings = {}; }
+  }
+
+  window.saveMsgSettings = async function() {
+    const keys = Object.keys(MSG_DEFAULTS);
+    const data = {};
+    keys.forEach(key => {
+      const el = document.getElementById('mst_' + key);
+      if (el) data[key] = el.value;
+    });
+    try {
+      await setDoc(doc(db, 'settings', 'messageTemplate'), data);
+      msgSettings = data;
+      showToast('💾 تم حفظ إعدادات الرسالة!');
+      generateMessage(); // refresh preview
+    } catch(e) { showToast('⚠️ خطأ في الحفظ'); }
+  };
+
+  window.resetMsgSettings = async function() {
+    if (!confirm('إعادة كل النصوص للإعدادات الافتراضية؟')) return;
+    try {
+      await deleteDoc(doc(db, 'settings', 'messageTemplate'));
+      msgSettings = {};
+      renderMsgSettingsPage();
+      showToast('↩️ تم استعادة الإعدادات الافتراضية');
+      generateMessage();
+    } catch(e) { showToast('⚠️ خطأ'); }
+  };
+
+  function renderMsgSettingsPage() {
+    const container = document.getElementById('msgSettingsFields');
+    if (!container) return;
+    container.innerHTML = Object.keys(MSG_DEFAULTS).map(key => {
+      const val = ms(key);
+      const isLong = val.length > 80;
+      const isModified = msgSettings[key] !== undefined && msgSettings[key] !== MSG_DEFAULTS[key];
+      return `
+        <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;border:1px solid ${isModified ? 'var(--accent)' : 'var(--border)'}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label style="font-weight:700;font-size:0.83rem;color:${isModified ? 'var(--accent)' : 'var(--text-muted)'};text-transform:none">
+              ${MSG_LABELS[key]} ${isModified ? '✏️' : ''}
+            </label>
+            <button onclick="resetSingleField('${key}')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.75rem;padding:2px 6px" title="استعادة الافتراضي">↩️</button>
+          </div>
+          ${isLong
+            ? `<textarea id="mst_${key}" rows="3" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:0.88rem;resize:vertical;direction:rtl">${val}</textarea>`
+            : `<input type="text" id="mst_${key}" value="${val.replace(/"/g,'&quot;')}" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-family:inherit;font-size:0.88rem;direction:rtl">`
+          }
+        </div>`;
+    }).join('');
+  }
+
+  window.resetSingleField = function(key) {
+    const el = document.getElementById('mst_' + key);
+    if (el) el.value = MSG_DEFAULTS[key];
+  };
+
+  // Hook to render settings page when tab is opened
+  const _origShowPage = window.showPage;
+  window.showPage = function(page, btn) {
+    _origShowPage(page, btn);
+    if (page === 'msgSettings') renderMsgSettingsPage();
+  };
+
+  // ==================== GENERATE MESSAGE ====================
   window.generateMessage = function() {
     const name = v('name'), job = v('job'), dayName = v('dayName'), date = v('date');
     const timeLibya = v('timeLibya'), timeEgypt = v('timeEgypt'), duration = v('duration');
@@ -1083,154 +1212,64 @@
       return;
     }
 
+    const r = (tpl, vars) => {
+      let s = tpl;
+      for (const [k, val] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, val);
+      return s;
+    };
+
     let msg = '';
-    msg += `السلام عليكم ورحمة الله\n`;
-    msg += `اهلا بك استاذ : ${name}\n`;
-    msg += `معك ${recruiterName} ${recruiterTitle} من شركة المدينة مصراتة القابضة\n`;
+    msg += ms('greeting') + '\n';
+    msg += r(ms('welcome'), { 'اسم': name }) + '\n';
+    msg += r(ms('intro'), { 'مسؤول': recruiterName, 'مسمى': recruiterTitle }) + '\n';
 
     if (jobSource) {
-      msg += `انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك عبر موقع : (${jobSource}) `;
+      msg += r(ms('candidateWithSrc'), { 'مصدر': jobSource }) + ' ';
     } else {
-      msg += `انت مرشح للعمل لدينا بعد اطلاعنا على السيرة الذاتية الخاصة بك `;
+      msg += ms('candidateNoSrc') + ' ';
     }
 
     if (interviewType === 'online') {
       const app = v('meetApp') === 'other' ? (v('otherApp') || 'Google Meet') : v('meetApp');
-      msg += `ونرغب في تحديد موعد مقابلة (اونلاين) عبر تطبيق ${app}\n`;
+      msg += r(ms('onlineType'), { 'تطبيق': app }) + '\n';
     } else {
-      msg += `ونرغب في تحديد موعد مقابلة في مقر الشركة في مدينة مصراتة - ليبيا\n`;
+      msg += ms('offlineType') + '\n';
       const loc = v('locationLink');
-      if (loc) msg += `موقع مكان المقابلة : ${loc}\n`;
+      if (loc) msg += r(ms('locationLabel'), { 'رابط': loc }) + '\n';
     }
 
-    msg += `\nالوظيفة: ${job}\n`;
-    msg += `\nتفاصيل الموعد:\n`;
-    if (dayName) msg += `اليوم : ${dayName}\n`;
-    if (date) msg += `الموافق : ${date}\n`;
+    msg += '\n' + r(ms('jobLabel'), { 'وظيفة': job }) + '\n';
+    msg += '\n' + ms('scheduleHeader') + '\n';
+    if (dayName) msg += r(ms('dayLabel'),  { 'يوم': dayName }) + '\n';
+    if (date)    msg += r(ms('dateLabel'), { 'تاريخ': date }) + '\n';
 
     if (timeLibya && timeEgypt) {
-      msg += `الساعة : ${timeLibya} بتوقيت ليبيا – ${timeEgypt} بتوقيت مصر\n`;
+      msg += r(ms('timeLabel'), { 'وقت_ليبيا': timeLibya, 'وقت_مصر': timeEgypt }) + '\n';
     } else if (timeLibya) {
-      msg += `الساعة : ${timeLibya} بتوقيت ليبيا\n`;
+      msg += r(ms('timeLabelLibyaOnly'), { 'وقت_ليبيا': timeLibya }) + '\n';
     } else if (timeEgypt) {
-      msg += `الساعة : ${timeEgypt} بتوقيت مصر\n`;
+      msg += r(ms('timeLabelEgyptOnly'), { 'وقت_مصر': timeEgypt }) + '\n';
     }
 
-    if (duration) msg += `مدة المقابلة: ${duration}\n`;
-    if (jobSource) msg += `مكان التوظيف: ${jobSource}\n`;
-    msg += `نوع العمل : دوام كامل - صباحي\n`;
-    msg += `نوع المقابلة : مقابلة اولى مع لجنة التوظيف تشمل نقاط فنية وشخصية و ادارية\n`;
+    if (duration) msg += r(ms('durationLabel'), { 'مدة': duration }) + '\n';
+    if (jobSource) msg += r(ms('sourceLabel'), { 'مصدر': jobSource }) + '\n';
+    msg += ms('workType') + '\n';
+    msg += ms('interviewType') + '\n';
 
-    if (interviewType === 'online') {
-      msg += `\nمنتظر تأكيد الموعد لارسال رابط الدعوة والمقابلة\n`;
-    } else {
-      msg += `\nمنتظر تأكيد الموعد\n`;
-    }
+    msg += '\n' + (interviewType === 'online' ? ms('confirmOnline') : ms('confirmOffline')) + '\n';
 
-    msg += `\n`;
-    if (hasSalary) {
-      msg += `يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات - رينج الراتب - المزايا مع الراتب) والتأكد من توافقها معك لأنه في حالة اختيارك للتعين سوف يكون العرض الوظيفي في حدود ما هو مكتوب.\n`;
-    } else {
-      msg += `يرجى الاطلاع جيداً على كل التفاصيل المذكورة في الإعلان - (المهام - المسؤوليات) والتأكد من توافقها معك.\n`;
-    }
+    msg += '\n' + (hasSalary ? ms('disclaimerSalary') : ms('disclaimerNoSalary')) + '\n';
 
-    if (jobLink) msg += `رابط الاعلان: ${jobLink}\n`;
-    if (interviewType === 'online') {
-      msg += `\nيرجى التأكد من فتح الكاميرا اثناء المقابلة وجودة الانترنت لضمان دقة التقييم.\n`;
-    }
+    if (jobLink) msg += 'رابط الاعلان: ' + jobLink + '\n';
+    if (interviewType === 'online') msg += '\n' + ms('cameraNote') + '\n';
 
-    msg += `\nمع التمنيات بالتوفيق ونتطلع للعمل معكم\n`;
-    msg += `دهانات المدينة مصراتة - https://almadinamisurata.com/`;
+    msg += '\n' + ms('closing') + '\n';
+    msg += ms('signature');
 
     document.getElementById('output').innerText = msg;
-
-    // Show/hide Google Meet calendar button
-    const meetRow = document.getElementById('googleMeetBtnRow');
-    const app = v('meetApp');
-    if (interviewType === 'online' && app === 'Google Meet' && name && job && v('datePicker')) {
-      meetRow.style.display = 'flex';
-    } else {
-      meetRow.style.display = 'none';
-    }
   };
 
   function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
-
-  // ==================== GOOGLE MEET CALENDAR ====================
-  window.scheduleGoogleMeet = function() {
-    const name     = v('name');
-    const job      = v('job');
-    const recruiterName  = v('recruiterName') || 'محمود الدبركي';
-    const recruiterTitle = v('recruiterTitle') || 'HR';
-    const datePicker = v('datePicker');   // YYYY-MM-DD
-    const timeLibyaRaw = document.getElementById('timeLibyaRaw').value;  // HH:MM
-    const timeEgyptRaw = document.getElementById('timeEgyptRaw').value;
-
-    if (!name || !job)       { showToast('⚠️ اكتب اسم المرشح والوظيفة'); return; }
-    if (!datePicker)         { showToast('⚠️ اختر التاريخ'); return; }
-    if (!timeLibyaRaw && !timeEgyptRaw) { showToast('⚠️ اختر الوقت'); return; }
-
-    // Use Libya time preferably, else Egypt time
-    const timeRaw = timeLibyaRaw || timeEgyptRaw;
-    const [hh, mm] = timeRaw.split(':').map(Number);
-
-    // Duration in minutes
-    const durationNum = parseInt(document.getElementById('durationNum').value) || 60;
-    const durationUnit = document.getElementById('durationUnit').value;
-    const durationMins = durationUnit === 'ساعة' ? durationNum * 60 : durationNum;
-
-    const dateStr = datePicker.replace(/-/g, '');
-    const hStr  = String(hh).padStart(2,'0');
-    const mStr  = String(mm).padStart(2,'0');
-
-    // End = start + duration
-    const totalStartMins = hh * 60 + mm;
-    const totalEndMins   = totalStartMins + durationMins;
-    const endHh  = Math.floor(totalEndMins / 60) % 24;
-    const endMm  = totalEndMins % 60;
-    const endHStr = String(endHh).padStart(2,'0');
-    const endMStr = String(endMm).padStart(2,'0');
-
-    const startDT = `${dateStr}T${hStr}${mStr}00`;
-    const endDT   = `${dateStr}T${endHStr}${endMStr}00`;
-
-    // Event title: "اسم المرشح - الوظيفة"
-    const title = `${name} - ${job}`;
-
-    // Description with all details
-    const timeLabel = timeLibyaRaw
-      ? `${hh%12||12}:${mStr} ${hh>=12?'مساءً':'صباحاً'} بتوقيت ليبيا`
-      : `${hh%12||12}:${mStr} ${hh>=12?'مساءً':'صباحاً'} بتوقيت مصر`;
-
-    const desc = [
-      `━━━━━━━━━━━━━━━━━━`,
-      `⚠️ مهم: اضغط على "Add video conferencing" لإضافة Google Meet`,
-      `━━━━━━━━━━━━━━━━━━`,
-      ``,
-      `مقابلة عمل عبر Google Meet`,
-      `المرشح: ${name}`,
-      `الوظيفة: ${job}`,
-      `الوقت: ${timeLabel}`,
-      `القائم بالمقابلة: ${recruiterName} - ${recruiterTitle}`,
-      `شركة المدينة مصراتة القابضة`,
-    ].join('\n');
-
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text:   title,
-      dates:  `${startDT}/${endDT}`,
-      details: desc,
-      location: 'Google Meet',
-      crm: 'AVAILABLE',
-      trp: 'false',
-    });
-
-    const calUrl = `https://calendar.google.com/calendar/render?${params.toString()}`;
-    window.open(calUrl, '_blank');
-
-    // Show a reminder toast
-    showToast('📅 فُتح Calendar — اضغط "Add video conferencing" لإضافة Meet!');
-  };
 
   // ==================== WHATSAPP ====================
   window.sendWhatsAppWithNumber = async function() {
@@ -1269,103 +1308,50 @@
   };
 
   // ==================== TEMPLATES ====================
-  let sharedTemplates = []; // templates shared by others
-
   window.saveTemplate = async function() {
     if (!hasPerm('canUseTemplates')) { showToast('⚠️ ليس لديك صلاحية'); return; }
     const name = prompt('اسم الـ template:');
     if (!name) return;
-    const isShared = hasPerm('canShareTemplates') &&
-      confirm('هل تريد مشاركة هذا الـ template مع جميع المستخدمين؟\n(اختر "إلغاء" لحفظه لنفسك فقط)');
     const state = getFormState();
     state._name = name;
-    state._shared = isShared;
-    state._ownerName = currentUser.displayName || currentUser.email;
-    state._ownerEmail = currentUser.email;
     try {
-      if (isShared) {
-        // Save to global shared templates collection
-        const ref = await addDoc(collection(db, 'sharedTemplates'), state);
-        state._id = ref.id;
-        sharedTemplates.push(state);
-      } else {
-        const ref = await addDoc(collection(db, 'users', currentUser.uid, 'templates'), state);
-        state._id = ref.id;
-        templates.push(state);
-      }
+      const ref = await addDoc(collection(db, 'users', currentUser.uid, 'templates'), state);
+      state._id = ref.id;
+      templates.push(state);
       renderTemplates();
-      showToast(isShared ? '🌐 تم حفظ ومشاركة الـ template مع الكل!' : '💾 تم حفظ الـ template!');
+      showToast('💾 تم حفظ الـ template!');
     } catch(e) { showToast('⚠️ خطأ في الحفظ'); }
   };
 
-  window.loadTemplate = function(idx, isShared) {
-    const t = isShared ? sharedTemplates[idx] : templates[idx];
+  window.loadTemplate = function(idx) {
+    const t = templates[idx];
     if (!t) return;
     setFormState(t);
     generateMessage();
     showToast('📂 تم تحميل الـ template!');
   };
 
-  window.deleteTemplate = async function(idx, isShared) {
+  window.deleteTemplate = async function(idx) {
     if (!confirm('مسح الـ template؟')) return;
-    if (isShared) {
-      const t = sharedTemplates[idx];
-      // Only owner or superadmin can delete shared template
-      if (t._ownerEmail !== currentUser.email && currentUserData.role !== 'superadmin') {
-        showToast('⚠️ لا يمكنك حذف template شخص آخر');
-        return;
-      }
-      try {
-        await deleteDoc(doc(db, 'sharedTemplates', t._id));
-        sharedTemplates.splice(idx, 1);
-        renderTemplates();
-      } catch(e) { showToast('⚠️ خطأ في المسح'); }
-    } else {
-      const t = templates[idx];
-      try {
-        await deleteDoc(doc(db, 'users', currentUser.uid, 'templates', t._id));
-        templates.splice(idx, 1);
-        renderTemplates();
-      } catch(e) { showToast('⚠️ خطأ في المسح'); }
-    }
-  };
-
-  async function loadSharedTemplates() {
+    const t = templates[idx];
     try {
-      const snap = await getDocs(collection(db, 'sharedTemplates'));
-      sharedTemplates = snap.docs.map(d => ({ ...d.data(), _id: d.id }));
-    } catch(e) { sharedTemplates = []; }
-  }
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'templates', t._id));
+      templates.splice(idx, 1);
+      renderTemplates();
+    } catch(e) { showToast('⚠️ خطأ في المسح'); }
+  };
 
   function renderTemplates() {
     if (!hasPerm('canUseTemplates')) { document.getElementById('templatesBar').style.display = 'none'; return; }
     const bar = document.getElementById('templatesBar');
     bar.innerHTML = '<button class="tpl-btn save-btn" onclick="saveTemplate()">💾 حفظ كـ template</button>';
-
-    // My templates
-    if (templates.length) {
-      bar.innerHTML += `<span style="font-size:0.72rem;color:var(--text-muted);align-self:center">▸ خاصة:</span>`;
-      templates.forEach((t, i) => {
-        bar.innerHTML += `
-          <div style="display:inline-flex;align-items:center;gap:4px">
-            <button class="tpl-btn" onclick="loadTemplate(${i}, false)">📂 ${t._name}</button>
-            <button class="tpl-btn delete-btn" onclick="deleteTemplate(${i}, false)" style="padding:6px 8px">✕</button>
-          </div>`;
-      });
-    }
-
-    // Shared templates
-    if (sharedTemplates.length) {
-      bar.innerHTML += `<span style="font-size:0.72rem;color:var(--accent);align-self:center">▸ مشتركة:</span>`;
-      sharedTemplates.forEach((t, i) => {
-        const canDel = t._ownerEmail === currentUser.email || currentUserData.role === 'superadmin';
-        bar.innerHTML += `
-          <div style="display:inline-flex;align-items:center;gap:4px">
-            <button class="tpl-btn" onclick="loadTemplate(${i}, true)" style="border-color:rgba(0,200,150,0.3);color:var(--accent)">🌐 ${t._name}</button>
-            ${canDel ? `<button class="tpl-btn delete-btn" onclick="deleteTemplate(${i}, true)" style="padding:6px 8px">✕</button>` : ''}
-          </div>`;
-      });
-    }
+    templates.forEach((t, i) => {
+      bar.innerHTML += `
+        <div style="display:inline-flex;align-items:center;gap:4px">
+          <button class="tpl-btn" onclick="loadTemplate(${i})">📂 ${t._name}</button>
+          <button class="tpl-btn delete-btn" onclick="deleteTemplate(${i})" style="padding:6px 8px">✕</button>
+        </div>`;
+    });
   }
 
   function getFormState() {
@@ -1587,73 +1573,15 @@
   window.openMapsPicker = function() {
     document.getElementById('mapsLinkInput').value = v('locationLink');
     document.getElementById('mapsLocationName').value = '';
-    document.getElementById('mapsSearchInput').value = '';
-    document.getElementById('mapsResultsList').style.display = 'none';
-    document.getElementById('mapsResultsList').innerHTML = '';
-    document.getElementById('mapsSelectedPreview').style.display = 'none';
     document.getElementById('mapsPickerModal').classList.add('open');
   };
 
-  window.searchMapsLocation = async function() {
+  window.searchMapsLocation = function() {
     const q = document.getElementById('mapsSearchInput').value.trim();
     if (!q) return;
-
-    const resultsList = document.getElementById('mapsResultsList');
-    resultsList.style.display = 'block';
-    resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted)">⏳ جاري البحث...</div>';
-
-    try {
-      // Nominatim: free, no API key needed
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&accept-language=ar`,
-        { headers: { 'Accept-Language': 'ar' } }
-      );
-      const data = await res.json();
-
-      if (!data.length) {
-        resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted)">🔍 لا توجد نتائج، جرب كلمات أخرى</div>';
-        return;
-      }
-
-      resultsList.innerHTML = data.map((place, i) => {
-        const lat = parseFloat(place.lat).toFixed(6);
-        const lon = parseFloat(place.lon).toFixed(6);
-        const gmUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-        const name = place.display_name;
-        const shortName = name.split(',').slice(0,3).join('،');
-        return `
-          <div onclick="selectMapsResult('${lat}','${lon}','${shortName.replace(/'/g,"\\'")}','${gmUrl.replace(/'/g,"\\'")}')"
-            style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s"
-            onmouseover="this.style.background='rgba(0,200,150,0.07)'"
-            onmouseout="this.style.background=''">
-            <div style="font-weight:700;font-size:0.88rem;margin-bottom:2px">📍 ${shortName}</div>
-            <div style="font-size:0.75rem;color:var(--text-muted)">${name}</div>
-          </div>`;
-      }).join('');
-    } catch(e) {
-      resultsList.innerHTML = '<div style="padding:12px;text-align:center;color:var(--danger)">⚠️ خطأ في البحث، تحقق من الإنترنت</div>';
-    }
-  };
-
-  window.selectMapsResult = function(lat, lon, name, gmUrl) {
-    // Fill link input with exact Google Maps link
-    document.getElementById('mapsLinkInput').value = gmUrl;
-    document.getElementById('mapsLocationName').value = name;
-
-    // Show preview
-    document.getElementById('mapsSelectedPreview').style.display = 'block';
-    document.getElementById('mapsSelectedName').textContent = name;
-    document.getElementById('mapsSelectedUrl').textContent = gmUrl;
-
-    // Hide results
-    document.getElementById('mapsResultsList').style.display = 'none';
-    showToast('📍 تم اختيار الموقع — اضغط تأكيد أو حفظ');
-  };
-
-  window.openMapsInNewTab = function() {
-    const q = document.getElementById('mapsSearchInput').value.trim();
-    if (!q) { showToast('⚠️ اكتب اسم الموقع أولاً'); return; }
-    window.open(`https://www.google.com/maps/search/${encodeURIComponent(q)}`, '_blank');
+    const encoded = encodeURIComponent(q);
+    document.getElementById('mapsFrame').src =
+      `https://www.google.com/maps/embed/v1/search?key=AIzaSyCwmtj6pDqhjBuR4TgL77d6jjQ4MdeXPDk&q=${encoded}&language=ar`;
   };
 
   window.confirmMapLocation = function() {
@@ -1689,18 +1617,11 @@
 
   // ==================== RECORDS ====================
   async function loadRecords() {
-    const canViewAll = hasPerm('canViewRecords');
-    const canViewOwn = hasPerm('canViewOwnRecords');
-    if (!canViewAll && !canViewOwn) return;
+    if (!hasPerm('canViewRecords')) return;
     try {
       const q = query(collection(db, 'interviews'), orderBy('timestamp', 'desc'));
       const snap = await getDocs(q);
-      let all = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
-      // If only own records perm → filter
-      if (!canViewAll && canViewOwn) {
-        all = all.filter(r => r.sentBy === currentUser.email);
-      }
-      records = all;
+      records = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       renderRecords();
     } catch(e) { console.error('loadRecords', e); }
   }
@@ -1725,7 +1646,7 @@
   }
 
   window.renderRecords = function() {
-    if (!hasPerm('canViewRecords') && !hasPerm('canViewOwnRecords')) return;
+    if (!hasPerm('canViewRecords')) return;
     const q = document.getElementById('searchRecords')?.value?.toLowerCase() || '';
     const filtered = records.filter(r =>
       (r.name||'').toLowerCase().includes(q) ||
@@ -1776,38 +1697,20 @@
   window.exportExcel = function() {
     if (!hasPerm('canExportExcel')) { showToast('⚠️ ليس لديك صلاحية'); return; }
     if (!records.length) { showToast('⚠️ لا توجد سجلات للتصدير'); return; }
-
-    // Build data array
     const headers = ['#','اسم المرشح','رقم التليفون','الوظيفة','اليوم','التاريخ','وقت ليبيا','وقت مصر','نوع المقابلة','موقع التوظيف','رابط الإعلان','تاريخ الإرسال','أرسل بواسطة'];
     const rows = records.map((r,i) => [
-      records.length-i, r.name||'', r.phone||'', r.job||'', r.dayName||'', r.date||'',
-      r.timeLibya||'', r.timeEgypt||'',
+      records.length-i, r.name, r.phone, r.job, r.dayName, r.date,
+      r.timeLibya, r.timeEgypt,
       r.interviewType==='online'?'أونلاين':'حضوري',
-      r.jobSource||'', r.jobLink||'', r.sentAt||'', r.sentByName||r.sentBy||''
+      r.jobSource, r.jobLink, r.sentAt, r.sentByName||r.sentBy||''
     ]);
-
-    // Use SheetJS
-    const XLSX = window.XLSX;
-    if (!XLSX) { showToast('⚠️ جاري تحميل مكتبة Excel...'); return; }
-
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Column widths
-    ws['!cols'] = [
-      {wch:5},{wch:20},{wch:16},{wch:20},{wch:12},{wch:18},
-      {wch:14},{wch:14},{wch:12},{wch:16},{wch:30},{wch:20},{wch:22}
-    ];
-
-    // RTL direction
-    ws['!dir'] = 'rtl';
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'سجل المقابلات');
-
-    const fileName = `سجل_المقابلات_${new Date().toLocaleDateString('ar-EG').replace(/\//g,'-')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    showToast('📥 تم تصدير ملف Excel!');
+    let csv = '\uFEFF' + [headers,...rows].map(row=>row.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url;
+    a.download = `سجل_المقابلات_${new Date().toLocaleDateString('ar-EG').replace(/\//g,'-')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('📥 تم تصدير الملف!');
   };
 
   // ==================== ADMIN PANEL ====================
@@ -1846,9 +1749,6 @@
                 ${!isSuperAdmin && !isSelf ? `
                   <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem" onclick="toggleApproval('${u._uid}', ${!u.approved})">
                     ${u.approved ? '🚫 تعليق' : '✅ تفعيل'}
-                  </button>
-                  <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.75rem;border-color:var(--danger);color:var(--danger)" onclick="deleteUser('${u._uid}', '${(u.name||u.email).replace(/'/g,"\\'")}')">
-                    🗑️
                   </button>` : ''}
               </div>
             </div>
@@ -1883,57 +1783,6 @@
       showToast(approve ? '✅ تم تفعيل المستخدم' : '🚫 تم تعليق المستخدم');
       loadAdminPanel();
     } catch(e) { showToast('⚠️ خطأ'); }
-  };
-
-  window.removeDuplicateUsers = async function() {
-    if (!confirm('هيشوف لو في إيميلات متكررة ويمسح الزيادة — يكمل؟')) return;
-    try {
-      const snap = await getDocs(collection(db, 'users'));
-      const users = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
-
-      // Group by email
-      const byEmail = {};
-      users.forEach(u => {
-        const email = (u.email || '').toLowerCase();
-        if (!byEmail[email]) byEmail[email] = [];
-        byEmail[email].push(u);
-      });
-
-      let deleted = 0;
-      for (const email in byEmail) {
-        const group = byEmail[email];
-        if (group.length <= 1) continue;
-
-        // Keep the one whose _docId matches currentUser.uid if exists, else keep first
-        const keepIdx = group.findIndex(u => u._docId === currentUser.uid);
-        const keepDoc = group[keepIdx >= 0 ? keepIdx : 0];
-
-        for (const u of group) {
-          if (u._docId === keepDoc._docId) continue;
-          await deleteDoc(doc(db, 'users', u._docId));
-          deleted++;
-        }
-      }
-
-      showToast(deleted > 0 ? `🧹 تم حذف ${deleted} تكرار` : '✅ لا توجد تكرارات');
-      loadAdminPanel();
-    } catch(e) { showToast('⚠️ خطأ'); console.error(e); }
-  };
-
-  window.deleteUser = async function(uid, name) {
-    if (!confirm(`حذف "${name}" نهائياً من قاعدة البيانات؟\n(لن يُحذف من Firebase Auth، لكن لن يظهر هنا مجدداً إلا لو سجّل دخول من جديد)`)) return;
-    try {
-      // Delete all user subcollections first
-      const subcols = ['templates', 'recruiters', 'jobs', 'locations'];
-      for (const col of subcols) {
-        const snap = await getDocs(collection(db, 'users', uid, col));
-        await Promise.all(snap.docs.map(d => deleteDoc(doc(db, 'users', uid, col, d.id))));
-      }
-      // Delete user document
-      await deleteDoc(doc(db, 'users', uid));
-      showToast('🗑️ تم حذف المستخدم');
-      loadAdminPanel();
-    } catch(e) { showToast('⚠️ خطأ في الحذف'); console.error(e); }
   };
 
   // ==================== NAVIGATION ====================
