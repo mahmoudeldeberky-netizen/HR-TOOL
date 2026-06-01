@@ -85,8 +85,8 @@
   }
   .pending-card h2 { color: var(--warning); font-size: 1.3rem; margin-bottom: 12px; }
   .pending-card p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.7; }
-  .pending-card .user-info { 
-    margin: 16px 0; padding: 12px; 
+  .pending-card .user-info {
+    margin: 16px 0; padding: 12px;
     background: var(--surface2); border-radius: 8px;
     color: var(--text); font-size: 0.9rem;
   }
@@ -864,7 +864,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import {
     getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
@@ -916,11 +916,17 @@
   // ==================== AUTH ====================
   window.signInWithGoogle = async function() {
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithRedirect(auth, provider);
     } catch(e) {
       showToast('⚠️ خطأ في تسجيل الدخول');
     }
   };
+
+  // التقاط أي خطأ يرجع من جوجل بعد إعادة التوجيه
+  getRedirectResult(auth).catch((e) => {
+    console.error('redirect login error', e);
+    if (typeof showToast === 'function') showToast('⚠️ خطأ في تسجيل الدخول: ' + (e.code || ''));
+  });
 
   window.doSignOut = async function() {
     await signOut(auth);
@@ -1245,7 +1251,6 @@
     }).join('');
   }
 
-  // ==================== GENERATE MESSAGE ====================
   // ==================== GENERATE MESSAGE ====================
   window.generateMessage = function() {
     const name = v('name'), job = v('job'), dayName = v('dayName'), date = v('date');
@@ -1993,7 +1998,7 @@
         const perms = u.permissions || {};
         const permChecks = ALL_PERMS.map(p => `
           <label class="perm-check">
-            <input type="checkbox" ${perms[p.key] ? 'checked' : ''} 
+            <input type="checkbox" ${perms[p.key] ? 'checked' : ''}
               ${isSuperAdmin ? 'disabled' : ''}
               onchange="updateUserPerm('${u._uid}', '${p.key}', this.checked)">
             ${p.label}
