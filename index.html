@@ -337,6 +337,7 @@
   }
   .nav-tab.active { background: var(--accent); color: #0d1117; }
   .nav-tab.hidden-tab { display: none; }
+  #caseBlocksList .dragging { opacity: 0.4; border-color: var(--accent) !important; }
 
   /* Records */
   .records-toolbar {
@@ -665,11 +666,13 @@
     </div>
 
     <hr class="divider">
-    <div class="section-label">خيارات إضافية</div>
-    <label class="salary-toggle">
-      <input type="checkbox" id="hasSalary" onchange="generateMessage()">
-      <span>الإعلان يتضمن رينج الراتب والمزايا</span>
-    </label>
+    <div class="section-label">حالة الرسالة</div>
+    <div class="form-group">
+      <label>اختر شكل الرسالة (الحالة)</label>
+      <select id="caseSelect" onchange="generateMessage()">
+        <option value="__default__">الحالة الافتراضية (كل الفقرات)</option>
+      </select>
+    </div>
   </div>
 
   <!-- Right: Output -->
@@ -765,6 +768,34 @@
         <button class="btn btn-secondary" onclick="resetMsgSettings()">↩️ استعادة الافتراضي</button>
         <button class="btn btn-primary" onclick="saveMsgSettings()">💾 حفظ التغييرات</button>
       </div>
+    </div>
+
+    <!-- CASES MANAGER -->
+    <div class="card" id="casesManagerCard" style="margin-top:20px">
+      <div class="card-title"><span>🗂️</span> حالات الرسالة</div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px">
+        كل حالة لها شكل خاص: رتّب الفقرات بالسحب، أخفِ/أظهر أي فقرة، أو أضف فقرات جديدة من عندك — ثم احفظها باسم.
+        في صفحة الرسالة تختار الحالة من القائمة فتظهر الرسالة بشكلها بالظبط.
+      </p>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>الحالة المعروضة للتعديل</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="caseEditSelect" onchange="onCaseEditChange()" style="flex:1;min-width:200px">
+            <option value="__new__">➕ حالة جديدة...</option>
+          </select>
+          <input type="text" id="caseNameInput" placeholder="اسم الحالة (مثال: حالة 1)" style="flex:1;min-width:180px">
+          <button class="btn btn-primary" onclick="saveCase()" style="white-space:nowrap">💾 حفظ الحالة</button>
+          <button class="btn btn-secondary" onclick="deleteCase()" id="deleteCaseBtn" style="white-space:nowrap;display:none">🗑️ حذف</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-secondary" onclick="addCustomBlock()" style="white-space:nowrap">➕ أضف فقرة جديدة</button>
+        <button class="btn btn-secondary" onclick="showAllBlocks()" style="white-space:nowrap">👁️ إظهار الكل</button>
+      </div>
+
+      <div id="caseBlocksList" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 </div>
@@ -910,6 +941,7 @@
     { key: 'canShareTemplates',     label: '🌐 مشاركة Templates مع الكل' },
     { key: 'canSaveLocations',      label: '📍 حفظ المواقع' },
     { key: 'canEditMsgTemplate',    label: '✍️ تعديل نص الرسالة' },
+    { key: 'canManageCases',        label: '🗂️ إدارة حالات الرسالة' },
     { key: 'isAdmin',               label: '⚙️ أدمن (إدارة مستخدمين)' },
   ];
 
@@ -1025,7 +1057,7 @@
     if (!hasPerm('canManageJobs')) document.getElementById('btnManageJobs').style.display = 'none';
 
     // Load user data from Firestore
-    await Promise.all([loadUserData(), loadRecords(), loadMsgSettings()]);
+    await Promise.all([loadUserData(), loadRecords(), loadMsgSettings(), loadMsgCases()]);
   }
 
   async function loadUserData() {
@@ -1180,6 +1212,235 @@
     return (msgSettings[key] !== undefined ? msgSettings[key] : MSG_DEFAULTS[key]) || '';
   }
 
+  // ==================== MESSAGE CASES SYSTEM ====================
+  // الترتيب الافتراضي للفقرات (نفس ترتيب الرسالة الأصلية)
+  const DEFAULT_BLOCK_ORDER = [
+    'greeting','welcome','intro','candidate','interviewType','locationLabel',
+    'jobLabel','scheduleHeader','dayLabel','dateLabel','timeLabel','durationLabel',
+    'sourceLabel','workType','interviewTypeText','confirm','disclaimer',
+    'jobLinkLabel','cameraNote','closing','signature'
+  ];
+
+  // فقرات مدمجة (تتغير حسب المدخلات) - نعرضها كفقرة واحدة في المحرر
+  const BLOCK_LABELS = {
+    greeting:        '① التحية الافتتاحية',
+    welcome:         '② الترحيب بالمرشح',
+    intro:           '③ التعريف بالمسؤول والشركة',
+    candidate:       '④ جملة الترشيح (مع/بدون مصدر تلقائي)',
+    interviewType:   '⑤ نوع المقابلة (أونلاين/حضوري تلقائي)',
+    locationLabel:   '⑥ موقع المقابلة (للحضوري)',
+    jobLabel:        '⑦ الوظيفة',
+    scheduleHeader:  '⑧ عنوان تفاصيل الموعد',
+    dayLabel:        '⑨ اليوم',
+    dateLabel:       '⑩ التاريخ',
+    timeLabel:       '⑪ الوقت',
+    durationLabel:   '⑫ المدة',
+    sourceLabel:     '⑬ مكان التوظيف',
+    workType:        '⑭ نوع العمل',
+    interviewTypeText:'⑮ وصف نوع المقابلة',
+    confirm:         '⑯ تأكيد الموعد',
+    disclaimer:      '⑰ تنبيه الإعلان (الراتب)',
+    jobLinkLabel:    '⑱ رابط الإعلان',
+    cameraNote:      '⑲ ملاحظة الكاميرا (للأونلاين)',
+    closing:         '⑳ جملة الختام',
+    signature:       '㉑ التوقيع',
+  };
+
+  // الحالات المحفوظة: { name: { blocks: [{id, visible, custom?, text?}] } }
+  let msgCases = {};       // { caseName: caseObj }
+  let editingCaseName = ''; // اسم الحالة الجاري تعديلها ('' = جديدة)
+  let workingBlocks = [];   // الفقرات الجاري تعديلها في المحرر
+
+  // ينشئ ترتيب فقرات افتراضي (الكل ظاهر)
+  function makeDefaultBlocks() {
+    return DEFAULT_BLOCK_ORDER.map(id => ({ id, visible: true }));
+  }
+
+  async function loadMsgCases() {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'messageCases'));
+      msgCases = snap.exists() ? (snap.data().cases || {}) : {};
+    } catch(e) { msgCases = {}; }
+    populateCaseDropdowns();
+  }
+
+  // يملأ القائمة المنسدلة في صفحة الرسالة + قائمة التعديل
+  function populateCaseDropdowns() {
+    const sel = document.getElementById('caseSelect');
+    if (sel) {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="__default__">الحالة الافتراضية (كل الفقرات)</option>';
+      Object.keys(msgCases).forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name;
+        sel.appendChild(o);
+      });
+      if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+    }
+    const esel = document.getElementById('caseEditSelect');
+    if (esel) {
+      const cur = esel.value;
+      esel.innerHTML = '<option value="__new__">➕ حالة جديدة...</option>';
+      Object.keys(msgCases).forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name;
+        esel.appendChild(o);
+      });
+      if ([...esel.options].some(o => o.value === cur)) esel.value = cur;
+    }
+  }
+
+  // عند تغيير الحالة في محرر التعديل
+  window.onCaseEditChange = function() {
+    const val = document.getElementById('caseEditSelect').value;
+    if (val === '__new__') {
+      editingCaseName = '';
+      workingBlocks = makeDefaultBlocks();
+      document.getElementById('caseNameInput').value = '';
+      document.getElementById('deleteCaseBtn').style.display = 'none';
+    } else {
+      editingCaseName = val;
+      // نسخة عميقة من فقرات الحالة
+      workingBlocks = JSON.parse(JSON.stringify(msgCases[val].blocks || makeDefaultBlocks()));
+      // ضمان وجود كل الفقرات الأساسية (لو اتضافت فقرة افتراضية جديدة في تحديث)
+      DEFAULT_BLOCK_ORDER.forEach(id => {
+        if (!workingBlocks.some(b => b.id === id)) workingBlocks.push({ id, visible: true });
+      });
+      document.getElementById('caseNameInput').value = val;
+      document.getElementById('deleteCaseBtn').style.display = '';
+    }
+    renderCaseBlocks();
+  };
+
+  // إضافة فقرة جديدة مخصصة
+  window.addCustomBlock = function() {
+    const text = prompt('اكتب نص الفقرة الجديدة:\n(تقدر تستخدم متغيرات زي {اسم} {وظيفة} {مصدر})');
+    if (text === null || !text.trim()) return;
+    const label = prompt('اسم الفقرة (للعرض في المحرر فقط):', 'فقرة مخصصة');
+    const id = 'custom_' + Date.now();
+    workingBlocks.push({ id, visible: true, custom: true, text: text.trim(), label: (label||'فقرة مخصصة').trim() });
+    renderCaseBlocks();
+  };
+
+  window.showAllBlocks = function() {
+    workingBlocks.forEach(b => b.visible = true);
+    renderCaseBlocks();
+  };
+
+  // عرض قائمة الفقرات القابلة للسحب والترتيب
+  function renderCaseBlocks() {
+    const list = document.getElementById('caseBlocksList');
+    if (!list) return;
+    list.innerHTML = '';
+    workingBlocks.forEach((b, idx) => {
+      const label = b.custom ? ('✨ ' + (b.label || 'فقرة مخصصة')) : (BLOCK_LABELS[b.id] || b.id);
+      const preview = b.custom ? (b.text || '') : (MSG_DEFAULTS[b.id+'WithSrc'] || MSG_DEFAULTS[b.id] || previewFor(b.id));
+      const row = document.createElement('div');
+      row.draggable = true;
+      row.dataset.idx = idx;
+      row.style.cssText = `display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid ${b.visible?'var(--border)':'var(--danger)'};border-radius:9px;padding:10px 12px;opacity:${b.visible?'1':'0.55'};cursor:grab`;
+      row.innerHTML = `
+        <span style="color:var(--text-muted);font-size:1.1rem">⠿</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:0.85rem;color:${b.visible?'var(--text)':'var(--text-muted)'}">${label}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(preview||'').slice(0,70)}</div>
+        </div>
+        <button onclick="toggleBlock(${idx})" title="إخفاء/إظهار" style="background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:4px 8px;color:var(--text);font-size:0.85rem">${b.visible?'👁️':'🚫'}</button>
+        ${b.custom?`<button onclick="editCustomBlock(${idx})" title="تعديل" style="background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:4px 8px;color:var(--text);font-size:0.85rem">✏️</button>
+        <button onclick="removeCustomBlock(${idx})" title="حذف نهائي" style="background:none;border:1px solid var(--danger);border-radius:6px;cursor:pointer;padding:4px 8px;color:var(--danger);font-size:0.85rem">🗑️</button>`:''}
+      `;
+      // drag events
+      row.addEventListener('dragstart', e => { row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; window._dragIdx = idx; });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+      row.addEventListener('dragover', e => { e.preventDefault(); });
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        const from = window._dragIdx, to = idx;
+        if (from === to || from == null) return;
+        const moved = workingBlocks.splice(from, 1)[0];
+        workingBlocks.splice(to, 0, moved);
+        window._dragIdx = null;
+        renderCaseBlocks();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  function previewFor(id) {
+    const map = { candidate:'candidateWithSrc', interviewType:'onlineType', timeLabel:'timeLabel', confirm:'confirmOnline', disclaimer:'disclaimerSalary' };
+    return MSG_DEFAULTS[map[id]] || '';
+  }
+
+  window.toggleBlock = function(idx) { workingBlocks[idx].visible = !workingBlocks[idx].visible; renderCaseBlocks(); };
+  window.removeCustomBlock = function(idx) {
+    if (!confirm('حذف الفقرة المخصصة نهائياً من هذه الحالة؟')) return;
+    workingBlocks.splice(idx, 1); renderCaseBlocks();
+  };
+  window.editCustomBlock = function(idx) {
+    const b = workingBlocks[idx];
+    const text = prompt('تعديل نص الفقرة:', b.text || '');
+    if (text === null) return;
+    const label = prompt('اسم الفقرة:', b.label || 'فقرة مخصصة');
+    b.text = text.trim(); b.label = (label||'فقرة مخصصة').trim();
+    renderCaseBlocks();
+  };
+
+  window.saveCase = async function() {
+    if (!hasPerm('canManageCases') && currentUserData.role !== 'superadmin') {
+      showToast('⚠️ ليس لديك صلاحية إدارة الحالات'); return;
+    }
+    const name = document.getElementById('caseNameInput').value.trim();
+    if (!name) { showToast('⚠️ اكتب اسم الحالة'); return; }
+    if (name === '__default__') { showToast('⚠️ اسم غير مسموح'); return; }
+    // لو غيّرنا اسم حالة موجودة، نحذف القديم
+    if (editingCaseName && editingCaseName !== name) delete msgCases[editingCaseName];
+    msgCases[name] = { blocks: JSON.parse(JSON.stringify(workingBlocks)) };
+    try {
+      await setDoc(doc(db, 'settings', 'messageCases'), { cases: msgCases });
+      editingCaseName = name;
+      populateCaseDropdowns();
+      document.getElementById('caseEditSelect').value = name;
+      document.getElementById('deleteCaseBtn').style.display = '';
+      showToast('💾 تم حفظ الحالة: ' + name);
+      generateMessage();
+    } catch(e) { showToast('⚠️ خطأ في حفظ الحالة'); }
+  };
+
+  window.deleteCase = async function() {
+    if (!hasPerm('canManageCases') && currentUserData.role !== 'superadmin') {
+      showToast('⚠️ ليس لديك صلاحية'); return;
+    }
+    if (!editingCaseName) return;
+    if (!confirm('حذف الحالة "' + editingCaseName + '" نهائياً؟')) return;
+    delete msgCases[editingCaseName];
+    try {
+      await setDoc(doc(db, 'settings', 'messageCases'), { cases: msgCases });
+      editingCaseName = '';
+      populateCaseDropdowns();
+      document.getElementById('caseEditSelect').value = '__new__';
+      onCaseEditChange();
+      showToast('🗑️ تم حذف الحالة');
+      generateMessage();
+    } catch(e) { showToast('⚠️ خطأ في الحذف'); }
+  }
+
+  // تهيئة محرر الحالات عند فتح الصفحة
+  function initCasesEditor() {
+    const card = document.getElementById('casesManagerCard');
+    const canManage = hasPerm('canManageCases') || currentUserData.role === 'superadmin';
+    if (card) card.style.display = canManage ? '' : 'none';
+    if (!canManage) return;
+    populateCaseDropdowns();
+    const esel = document.getElementById('caseEditSelect');
+    if (!esel) return;
+    if (!editingCaseName || !msgCases[editingCaseName]) {
+      esel.value = '__new__';
+    } else {
+      esel.value = editingCaseName;
+    }
+    onCaseEditChange();
+  }
+
   // Replace {var} placeholders
   function tpl(str, vars) {
     let s = str;
@@ -1256,65 +1517,84 @@
     const name = v('name'), job = v('job'), dayName = v('dayName'), date = v('date');
     const timeLibya = v('timeLibya'), timeEgypt = v('timeEgypt'), duration = v('duration');
     const jobSource = v('jobSource'), jobLink = v('jobLink');
-    const hasSalary = document.getElementById('hasSalary').checked;
     const recruiterName = v('recruiterName') || 'محمود الدبركي';
     const recruiterTitle = v('recruiterTitle') || 'HR';
 
     if (!name || !job) {
       document.getElementById('output').innerHTML = '<div class="output-placeholder">اكتب اسم المرشح والوظيفة على الأقل ✨</div>';
-      // Hide Google Meet button
       document.getElementById('googleMeetBtnRow').style.display = 'none';
       return;
     }
 
-    let msg = '';
-    msg += ms('greeting') + '\n';
-    msg += tpl(ms('welcome'), { 'اسم': name }) + '\n';
-    msg += tpl(ms('intro'), { 'مسؤول': recruiterName, 'مسمى': recruiterTitle }) + '\n';
+    const app = v('meetApp') === 'other' ? (v('otherApp') || 'Google Meet') : v('meetApp');
 
-    if (jobSource) {
-      msg += tpl(ms('candidateWithSrc'), { 'مصدر': jobSource }) + ' ';
+    // تحديد الحالة المختارة وترتيب فقراتها
+    const caseVal = document.getElementById('caseSelect') ? document.getElementById('caseSelect').value : '__default__';
+    let blocks;
+    if (caseVal !== '__default__' && msgCases[caseVal] && msgCases[caseVal].blocks) {
+      blocks = msgCases[caseVal].blocks;
     } else {
-      msg += ms('candidateNoSrc') + ' ';
+      blocks = makeDefaultBlocks();
     }
 
-    if (interviewType === 'online') {
-      const app = v('meetApp') === 'other' ? (v('otherApp') || 'Google Meet') : v('meetApp');
-      msg += tpl(ms('onlineType'), { 'تطبيق': app }) + '\n';
-    } else {
-      msg += ms('offlineType') + '\n';
-      const loc = v('locationLink');
-      if (loc) msg += tpl(ms('locationLabel'), { 'رابط': loc }) + '\n';
-    }
+    // وضع الراتب يُستنتج من الحالة (فقرة disclaimer مخفية = بدون تنبيه)
+    let salaryMode = 'salary';
+    const discBlock = blocks.find(b => b.id === 'disclaimer');
+    if (!discBlock || !discBlock.visible) salaryMode = 'none';
 
-    msg += '\n' + tpl(ms('jobLabel'), { 'وظيفة': job }) + '\n';
-    msg += '\n' + ms('scheduleHeader') + '\n';
-    if (dayName) msg += tpl(ms('dayLabel'),  { 'يوم': dayName }) + '\n';
-    if (date)    msg += tpl(ms('dateLabel'), { 'تاريخ': date }) + '\n';
+    // نص كل فقرة (يرجع '' لو الفقرة مالهاش لازمة في المدخلات الحالية)
+    const blockText = {
+      greeting:       () => ms('greeting'),
+      welcome:        () => tpl(ms('welcome'), { 'اسم': name }),
+      intro:          () => tpl(ms('intro'), { 'مسؤول': recruiterName, 'مسمى': recruiterTitle }),
+      candidate:      () => jobSource ? tpl(ms('candidateWithSrc'), { 'مصدر': jobSource }) : ms('candidateNoSrc'),
+      interviewType:  () => interviewType === 'online'
+                              ? tpl(ms('onlineType'), { 'تطبيق': app })
+                              : ms('offlineType'),
+      locationLabel:  () => (interviewType !== 'online' && v('locationLink'))
+                              ? tpl(ms('locationLabel'), { 'رابط': v('locationLink') }) : '',
+      jobLabel:       () => tpl(ms('jobLabel'), { 'وظيفة': job }),
+      scheduleHeader: () => ms('scheduleHeader'),
+      dayLabel:       () => dayName ? tpl(ms('dayLabel'), { 'يوم': dayName }) : '',
+      dateLabel:      () => date ? tpl(ms('dateLabel'), { 'تاريخ': date }) : '',
+      timeLabel:      () => {
+                        if (timeLibya && timeEgypt) return tpl(ms('timeLabel'), { 'وقت_ليبيا': timeLibya, 'وقت_مصر': timeEgypt });
+                        if (timeLibya) return tpl(ms('timeLabelLibyaOnly'), { 'وقت_ليبيا': timeLibya });
+                        if (timeEgypt) return tpl(ms('timeLabelEgyptOnly'), { 'وقت_مصر': timeEgypt });
+                        return '';
+                      },
+      durationLabel:  () => duration ? tpl(ms('durationLabel'), { 'مدة': duration }) : '',
+      sourceLabel:    () => jobSource ? tpl(ms('sourceLabel'), { 'مصدر': jobSource }) : '',
+      workType:       () => ms('workType'),
+      interviewTypeText:() => ms('interviewTypeText'),
+      confirm:        () => interviewType === 'online' ? ms('confirmOnline') : ms('confirmOffline'),
+      disclaimer:     () => salaryMode === 'none' ? ''
+                              : (salaryMode === 'salary' ? ms('disclaimerSalary') : ms('disclaimerNoSalary')),
+      jobLinkLabel:   () => jobLink ? tpl(ms('jobLinkLabel'), { 'رابط': jobLink }) : '',
+      cameraNote:     () => interviewType === 'online' ? ms('cameraNote') : '',
+      closing:        () => ms('closing'),
+      signature:      () => ms('signature'),
+    };
 
-    if (timeLibya && timeEgypt) {
-      msg += tpl(ms('timeLabel'), { 'وقت_ليبيا': timeLibya, 'وقت_مصر': timeEgypt }) + '\n';
-    } else if (timeLibya) {
-      msg += tpl(ms('timeLabelLibyaOnly'), { 'وقت_ليبيا': timeLibya }) + '\n';
-    } else if (timeEgypt) {
-      msg += tpl(ms('timeLabelEgyptOnly'), { 'وقت_مصر': timeEgypt }) + '\n';
-    }
+    // بناء الرسالة بالترتيب المحدد
+    const lines = [];
+    blocks.forEach(b => {
+      if (!b.visible) return;
+      let txt = '';
+      if (b.custom) {
+        txt = tpl(b.text || '', {
+          'اسم': name, 'وظيفة': job, 'مسؤول': recruiterName, 'مسمى': recruiterTitle,
+          'مصدر': jobSource, 'تطبيق': app, 'يوم': dayName, 'تاريخ': date,
+          'وقت_ليبيا': timeLibya, 'وقت_مصر': timeEgypt, 'مدة': duration,
+          'رابط': jobLink || v('locationLink') || ''
+        });
+      } else if (blockText[b.id]) {
+        txt = blockText[b.id]();
+      }
+      if (txt && txt.trim()) lines.push(txt);
+    });
 
-    if (duration) msg += tpl(ms('durationLabel'), { 'مدة': duration }) + '\n';
-    if (jobSource) msg += tpl(ms('sourceLabel'), { 'مصدر': jobSource }) + '\n';
-    msg += ms('workType') + '\n';
-    msg += ms('interviewTypeText') + '\n';
-
-    msg += '\n' + (interviewType === 'online' ? ms('confirmOnline') : ms('confirmOffline')) + '\n';
-
-    msg += '\n' + (hasSalary ? ms('disclaimerSalary') : ms('disclaimerNoSalary')) + '\n';
-
-    if (jobLink) msg += tpl(ms('jobLinkLabel'), { 'رابط': jobLink }) + '\n';
-    if (interviewType === 'online') msg += '\n' + ms('cameraNote') + '\n';
-
-    msg += '\n' + ms('closing') + '\n';
-    msg += ms('signature');
-
+    const msg = lines.join('\n');
     document.getElementById('output').innerText = msg;
 
     // Show/hide Google Meet calendar button
@@ -1552,7 +1832,7 @@
       timeLibya: v('timeLibya'), timeEgypt: v('timeEgypt'),
       duration: v('duration'), durationNum: v('durationNum'), durationUnit: v('durationUnit'),
       jobSource: v('jobSource'), jobLink: v('jobLink'),
-      hasSalary: document.getElementById('hasSalary').checked
+      selectedCase: document.getElementById('caseSelect') ? document.getElementById('caseSelect').value : '__default__'
     };
   }
 
@@ -1565,7 +1845,8 @@
     set('timeLibyaRaw', s.timeLibyaRaw); set('timeEgyptRaw', s.timeEgyptRaw);
     set('duration', s.duration); set('durationNum', s.durationNum); set('durationUnit', s.durationUnit);
     set('jobSource', s.jobSource); set('jobLink', s.jobLink);
-    document.getElementById('hasSalary').checked = s.hasSalary || false;
+    const cs = document.getElementById('caseSelect');
+    if (cs && s.selectedCase && [...cs.options].some(o => o.value === s.selectedCase)) cs.value = s.selectedCase;
 
     // Refresh time badges
     if (s.timeLibyaRaw) onTimeChange('Libya');
@@ -2117,7 +2398,7 @@
     if (btn) btn.classList.add('active');
     if (page === 'records') loadRecords();
     if (page === 'admin') loadAdminPanel();
-    if (page === 'msgSettings') renderMsgSettingsPage();
+    if (page === 'msgSettings') { renderMsgSettingsPage(); initCasesEditor(); }
   };
 
   // ==================== MODAL ====================
